@@ -18,7 +18,7 @@ class SkillProfileDialog extends StatelessWidget {
     required SkillProfile profile,
     required AppThemeTokens theme,
   }) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,

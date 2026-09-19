@@ -92,7 +92,7 @@ class CanvasGridPainter extends CustomPainter {
 
   void _paintIsometricGrid(Canvas canvas, Size size, Paint majorPaint, Paint minorPaint) {
     const spacing = 40.0;
-    final angle = 30.0 * math.pi / 180.0;
+    const angle = 30.0 * math.pi / 180.0;
     final tanAngle = math.tan(angle);
 
     // 1. Vertical lines

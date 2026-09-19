@@ -16,7 +16,7 @@ class InteractiveCanvas extends StatefulWidget {
   final Widget? backgroundDrillOverlay;
   final bool showHeatmap;
   final bool allowFingerDrawing;
-  final Function(Stroke stroke)? onStrokeCompleted;
+  final void Function(Stroke stroke)? onStrokeCompleted;
   final List<Stroke> strokes;
   final VoidCallback? onClear;
 
@@ -160,7 +160,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
           )
         : null;
 
-    return Container(
+    return ColoredBox(
       color: widget.theme.canvasBackground,
       child: Stack(
         children: [

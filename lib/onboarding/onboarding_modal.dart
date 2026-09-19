@@ -32,7 +32,7 @@ class OnboardingModal extends StatefulWidget {
     required AppThemeTokens theme,
     required VoidCallback onComplete,
   }) {
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => Dialog(

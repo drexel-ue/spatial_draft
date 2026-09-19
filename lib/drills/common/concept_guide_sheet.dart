@@ -34,7 +34,7 @@ class ConceptGuideSheet extends StatelessWidget {
     required List<GuideSectionItem> sections,
     required AppThemeTokens theme,
   }) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
