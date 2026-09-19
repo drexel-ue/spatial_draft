@@ -1,0 +1,64 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Flutter Tests (Full Suite)",
+      "type": "shell",
+      "command": "flutter test test/widget_test.dart",
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Build iOS Simulator (Debug)",
+      "type": "shell",
+      "command": "flutter build ios --simulator --debug",
+      "problemMatcher": [],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Install & Launch on iPad Mini",
+      "type": "shell",
+      "command": "xcrun simctl install 69589511-7BAE-42D5-8732-7C11B5D2CBE2 build/ios/iphonesimulator/Runner.app && xcrun simctl launch 69589511-7BAE-42D5-8732-7C11B5D2CBE2 com.lamontlabs.spatialDraft",
+      "problemMatcher": [],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Capture iPad Mini Landscape Screenshot",
+      "type": "shell",
+      "command": "xcrun simctl io 69589511-7BAE-42D5-8732-7C11B5D2CBE2 screenshot screenshots/latest_ipad_mini.png",
+      "problemMatcher": [],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Capture Screenshots (Landscape iPad)",
+      "type": "shell",
+      "command": "flutter test test/screenshot_capture_test.dart",
+      "problemMatcher": [],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true
+      }
+    }
+  ]
+}

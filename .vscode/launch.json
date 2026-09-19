@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "SpatialDraft (App)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "SpatialDraft (iPad Mini Simulator)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "69589511-7BAE-42D5-8732-7C11B5D2CBE2",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "Screen Rendering Tests",
+      "request": "launch",
+      "type": "dart",
+      "program": "test/screenshot_capture_test.dart"
+    },
+    {
+      "name": "Run Flutter Tests",
+      "request": "launch",
+      "type": "dart",
+      "program": "test/widget_test.dart"
+    }
+  ]
+}
