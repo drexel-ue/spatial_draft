@@ -231,17 +231,49 @@ class _EllipseDrillState extends State<EllipseDrill> {
                         value: '${(_lastResult!.tangencyScore * 100).round()}%',
                         detail: 'Wall contact',
                         theme: theme,
+                        valueColor: _lastResult!.tangencyScore >= 0.70
+                            ? theme.success
+                            : theme.warning,
                       ),
-                      const SizedBox(width: 20),
+                      const SizedBox(width: 18),
+                      _MetricItem(
+                        label: 'BOUNDS',
+                        value:
+                            '${(_lastResult!.containmentScore * 100).round()}%',
+                        detail: _lastResult!.containmentScore >= 0.80
+                            ? 'In-bounds'
+                            : 'Overshot edge',
+                        theme: theme,
+                        valueColor: _lastResult!.containmentScore >= 0.80
+                            ? theme.success
+                            : theme.warning,
+                      ),
+                      const SizedBox(width: 18),
+                      _MetricItem(
+                        label: 'SMOOTHNESS',
+                        value:
+                            '${(_lastResult!.smoothnessScore * 100).round()}%',
+                        detail: _lastResult!.smoothnessScore >= 0.75
+                            ? 'Clean shoulder'
+                            : 'Wobble / jitter',
+                        theme: theme,
+                        valueColor: _lastResult!.smoothnessScore >= 0.75
+                            ? theme.success
+                            : theme.warning,
+                      ),
+                      const SizedBox(width: 18),
                       _MetricItem(
                         label: 'AXIS DELTA',
-                        value: '${_lastResult!.minorAxisErrorDeg.toStringAsFixed(1)}°',
-                        detail: 'Minor axis deviation',
+                        value:
+                            '${_lastResult!.minorAxisErrorDeg.toStringAsFixed(1)}°',
+                        detail: 'Minor axis dev',
                         theme: theme,
-                        valueColor: _lastResult!.minorAxisErrorDeg < 8 ? theme.success : theme.warning,
+                        valueColor: _lastResult!.minorAxisErrorDeg < 8
+                            ? theme.success
+                            : theme.warning,
                       ),
 
-                      const SizedBox(width: 24),
+                      const SizedBox(width: 20),
 
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(

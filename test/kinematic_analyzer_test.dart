@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spatial_draft/analysis/kinematic_analyzer.dart';
@@ -174,6 +175,70 @@ void main() {
       expect(result.minorAxisErrorDeg, lessThanOrEqualTo(180.0));
     });
 
+    test('penalizes overshooting stroke with low containment and fails pass',
+        () {
+      // Quad is [200, 200] to [400, 400]
+      // Generate a stroke that bulges 35px above the top edge (y = 165)
+      final points = <StrokePoint>[];
+      for (int i = 0; i <= 36; i++) {
+        final angle = i * 2.0 * math.pi / 36.0;
+        final dx = 300.0 + 85.0 * math.cos(angle);
+        // Top portion bulges up to y = 165 (35px outside the top wall at y = 200)
+        final dy = 300.0 + (math.sin(angle) < 0 ? 135.0 : 85.0) * math.sin(angle);
+        points.add(
+          StrokePoint(
+            position: Offset(dx, dy),
+            timestampMicros: i * 10000,
+          ),
+        );
+      }
+
+      final stroke = Stroke(points: points, color: Colors.white);
+      final result = KinematicAnalyzer.analyzePerspectiveEllipse(
+        stroke: stroke,
+        quadCorners: quadCorners,
+        expectedMinorAxisAngleDeg: 90.0,
+      );
+
+      // Containment score should be severely penalized (< 0.60)
+      expect(result.containmentScore, lessThan(0.60));
+      // Overall score should be substantially lower than 95%
+      expect(result.overallScorePercent, lessThan(75));
+    });
+
+    test('smooth inscribed ellipse achieves high accuracy and containment', () {
+      // Inscribed circle in [200, 200] to [400, 400] centered at (300, 300) with r = 95
+      const center = Offset(300, 300);
+      const radius = 94.0;
+      final points = <StrokePoint>[];
+
+      for (int i = 0; i <= 60; i++) {
+        final angle = i * 2.0 * math.pi / 60.0;
+        points.add(
+          StrokePoint(
+            position: Offset(
+              center.dx + radius * math.cos(angle),
+              center.dy + radius * math.sin(angle),
+            ),
+            timestampMicros: i * 16000,
+          ),
+        );
+      }
+
+      final stroke = Stroke(points: points, color: Colors.white);
+      final result = KinematicAnalyzer.analyzePerspectiveEllipse(
+        stroke: stroke,
+        quadCorners: quadCorners,
+        expectedMinorAxisAngleDeg: 90.0,
+      );
+
+      expect(result.containmentScore, greaterThanOrEqualTo(0.90));
+      expect(result.smoothnessScore, greaterThanOrEqualTo(0.85));
+      expect(result.tangencyScore, greaterThanOrEqualTo(0.85));
+      expect(result.passed, isTrue);
+      expect(result.overallScorePercent, greaterThanOrEqualTo(80));
+    });
+
     test('handles zero edge length gracefully in segment distance', () {
       final collapsedQuad = [
         const Offset(100, 100),
@@ -185,7 +250,10 @@ void main() {
       final stroke = Stroke(
         points: List.generate(
           15,
-          (i) => StrokePoint(position: Offset(120.0 + i * 5, 120.0 + i * 5), timestampMicros: i * 1000),
+          (i) => StrokePoint(
+            position: Offset(120.0 + i * 5, 120.0 + i * 5),
+            timestampMicros: i * 1000,
+          ),
         ),
         color: Colors.white,
       );

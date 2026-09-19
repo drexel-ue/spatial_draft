@@ -255,9 +255,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('TANGENCY'), findsOneWidget);
+      expect(find.text('BOUNDS'), findsOneWidget);
+      expect(find.text('SMOOTHNESS'), findsOneWidget);
       expect(find.text('Next Plane'), findsOneWidget);
 
-      await tester.tap(find.text('Next Plane'));
+      await tester.tap(find.text('Next Plane'), warnIfMissed: false);
       await tester.pumpAndSettle();
     });
 

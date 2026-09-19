@@ -29,21 +29,26 @@ class GhostingAnalysisResult {
 }
 
 class EllipseAnalysisResult {
-
   const EllipseAnalysisResult({
     required this.overallAccuracy,
     required this.tangencyScore,
+    required this.containmentScore,
+    required this.smoothnessScore,
     required this.minorAxisErrorDeg,
-    required this.roundnessSmoothness,
     required this.passed,
-  });
+    double? roundnessSmoothness,
+  }) : roundnessSmoothness = roundnessSmoothness ?? smoothnessScore;
+
   final double overallAccuracy;     // 0.0 to 1.0
-  final double tangencyScore;       // contact with bounding quad (0.0 to 1.0)
-  final double minorAxisErrorDeg;   // angle difference between drawn and true minor axis
-  final double roundnessSmoothness; // 0.0 to 1.0
+  final double tangencyScore;       // contact near 4 edge midpoints (0.0 to 1.0)
+  final double containmentScore;    // in-bounds integrity (0.0 to 1.0)
+  final double smoothnessScore;     // curvature regularity (0.0 to 1.0)
+  final double minorAxisErrorDeg;   // PCA minor axis deviation from target
+  final double roundnessSmoothness; // backwards compatibility alias
   final bool passed;
 
-  int get overallScorePercent => (overallAccuracy * 100).round().clamp(0, 100);
+  int get overallScorePercent =>
+      (overallAccuracy * 100).round().clamp(0, 100);
 }
 
 class KinematicAnalyzer {
@@ -162,20 +167,22 @@ class KinematicAnalyzer {
       return const EllipseAnalysisResult(
         overallAccuracy: 0.4,
         tangencyScore: 0.4,
+        containmentScore: 0.4,
+        smoothnessScore: 0.5,
         minorAxisErrorDeg: 25.0,
-        roundnessSmoothness: 0.5,
         passed: false,
       );
     }
 
-    // Centroid of drawn stroke
+    // 1. Centroid calculation
     double sumX = 0;
     double sumY = 0;
     for (final pt in stroke.points) {
       sumX += pt.position.dx;
       sumY += pt.position.dy;
     }
-    final center = Offset(sumX / stroke.points.length, sumY / stroke.points.length);
+    final strokeCount = stroke.points.length;
+    final center = Offset(sumX / strokeCount, sumY / strokeCount);
 
     // Centroid of bounding quad
     double quadX = 0;
@@ -184,59 +191,288 @@ class KinematicAnalyzer {
       quadX += corner.dx;
       quadY += corner.dy;
     }
-    final quadCenter = Offset(quadX / quadCorners.length, quadY / quadCorners.length);
-    final centerOffset = (center - quadCenter).distance;
+    final quadCenter = Offset(
+      quadX / quadCorners.length,
+      quadY / quadCorners.length,
+    );
 
-    // Check contact points with quad edges
-    int touchedEdges = 0;
-    for (int i = 0; i < quadCorners.length; i++) {
-      final e1 = quadCorners[i];
-      final e2 = quadCorners[(i + 1) % quadCorners.length];
-      final edgeLen = (e2 - e1).distance;
+    // 2. Boundary Containment (penalizes overshoots/breaches)
+    final containmentScore = _computeContainmentScore(
+      stroke: stroke,
+      quadCorners: quadCorners,
+      quadCenter: quadCenter,
+    );
 
-      double minDistance = double.infinity;
-      for (final pt in stroke.points) {
-        final d = _orthogonalDistanceToSegment(pt.position, e1, e2, edgeLen);
-        if (d < minDistance) minDistance = d;
-      }
-      if (minDistance < 20.0) touchedEdges++;
-    }
+    // 3. Strict Edge Tangency (contact near 4 edge midpoints)
+    final tangencyScore = _computeTangencyScore(
+      stroke: stroke,
+      quadCorners: quadCorners,
+      quadCenter: quadCenter,
+    );
 
-    final tangencyScore = (touchedEdges / 4.0).clamp(0.0, 1.0);
-    final centerScore = (1.0 - (centerOffset / 30.0)).clamp(0.0, 1.0);
+    // 4. Curvature Regularity & Kinematic Smoothness
+    final smoothnessScore = _computeSmoothnessScore(stroke);
 
-    // Approximate drawn minor axis by finding minimum radius from center
-    double minRadius = double.infinity;
-    Offset minorPoint = stroke.points.first.position;
-    for (final pt in stroke.points) {
-      final r = (pt.position - center).distance;
-      if (r < minRadius) {
-        minRadius = r;
-        minorPoint = pt.position;
-      }
-    }
-    final drawnMinorAngleDeg = (math.atan2(minorPoint.dy - center.dy, minorPoint.dx - center.dx) * 180 / math.pi) % 180;
-    final angleDiff = ((drawnMinorAngleDeg - expectedMinorAxisAngleDeg).abs()) % 180;
-    final minorAxisDelta = angleDiff > 90 ? (180 - angleDiff) : angleDiff;
+    // 5. Global PCA Minor Axis Orientation
+    final minorAxisDelta = _computePcaMinorAxisDelta(
+      stroke: stroke,
+      center: center,
+      expectedMinorAxisAngleDeg: expectedMinorAxisAngleDeg,
+    );
+    final axisScore = (1.0 - (minorAxisDelta / 25.0)).clamp(0.0, 1.0);
 
-    final axisScore = (1.0 - (minorAxisDelta / 30.0)).clamp(0.0, 1.0);
-    final overall = (tangencyScore * 0.4 + centerScore * 0.3 + axisScore * 0.3).clamp(0.0, 1.0);
+    // 6. Weighted Pedagogical Score
+    final overall = (
+      tangencyScore * 0.30 +
+      containmentScore * 0.25 +
+      smoothnessScore * 0.25 +
+      axisScore * 0.20
+    ).clamp(0.0, 1.0);
 
     return EllipseAnalysisResult(
       overallAccuracy: overall,
       tangencyScore: tangencyScore,
+      containmentScore: containmentScore,
+      smoothnessScore: smoothnessScore,
       minorAxisErrorDeg: minorAxisDelta,
-      roundnessSmoothness: axisScore,
       passed: overall >= 0.70,
     );
   }
 
-  static double _orthogonalDistanceToLine(Offset p, Offset a, Offset b, double lineLength) {
+  static double _computeContainmentScore({
+    required Stroke stroke,
+    required List<Offset> quadCorners,
+    required Offset quadCenter,
+  }) {
+    if (quadCorners.length < 4) return 1.0;
+
+    // Reference winding signs for each quad edge using quadCenter
+    final refCrossSigns = <double>[];
+    for (int i = 0; i < 4; i++) {
+      final a = quadCorners[i];
+      final b = quadCorners[(i + 1) % 4];
+      final cpRef = (b.dx - a.dx) * (quadCenter.dy - a.dy) -
+          (b.dy - a.dy) * (quadCenter.dx - a.dx);
+      refCrossSigns.add(cpRef == 0 ? 1.0 : (cpRef > 0 ? 1.0 : -1.0));
+    }
+
+    int breachedPoints = 0;
+    double maxBreach = 0.0;
+    double totalBreach = 0.0;
+
+    for (final pt in stroke.points) {
+      double pointBreach = 0.0;
+      for (int i = 0; i < 4; i++) {
+        final a = quadCorners[i];
+        final b = quadCorners[(i + 1) % 4];
+        final cp = (b.dx - a.dx) * (pt.position.dy - a.dy) -
+            (b.dy - a.dy) * (pt.position.dx - a.dx);
+        final sign = cp == 0 ? 0.0 : (cp > 0 ? 1.0 : -1.0);
+
+        if (sign != 0 && sign != refCrossSigns[i]) {
+          final edgeLen = (b - a).distance;
+          final d = _orthogonalDistanceToSegment(pt.position, a, b, edgeLen);
+          if (d > pointBreach) {
+            pointBreach = d;
+          }
+        }
+      }
+
+      if (pointBreach > 0.0) {
+        breachedPoints++;
+        totalBreach += pointBreach;
+        if (pointBreach > maxBreach) {
+          maxBreach = pointBreach;
+        }
+      }
+    }
+
+    if (breachedPoints == 0) return 1.0;
+
+    final count = stroke.points.length;
+    final breachRatio = count > 0 ? breachedPoints / count : 0.0;
+    final avgBreach = count > 0 ? totalBreach / count : 0.0;
+
+    // Grace buffer of 3px for stroke ink brush thickness
+    final effMax = math.max(0.0, maxBreach - 3.0);
+    final effAvg = math.max(0.0, avgBreach - 1.0);
+
+    final maxPen = (effMax / 25.0).clamp(0.0, 1.0);
+    final ratioPen = (breachRatio * 1.4).clamp(0.0, 1.0);
+    final avgPen = (effAvg / 8.0).clamp(0.0, 1.0);
+
+    return (1.0 - (maxPen * 0.50 + ratioPen * 0.30 + avgPen * 0.20))
+        .clamp(0.0, 1.0);
+  }
+
+  static double _computeTangencyScore({
+    required Stroke stroke,
+    required List<Offset> quadCorners,
+    required Offset quadCenter,
+  }) {
+    if (quadCorners.length < 4) return 0.5;
+
+    double totalEdgeScore = 0.0;
+    for (int i = 0; i < 4; i++) {
+      final a = quadCorners[i];
+      final b = quadCorners[(i + 1) % 4];
+      final edgeVec = b - a;
+      final edgeLen = edgeVec.distance;
+      if (edgeLen == 0) continue;
+
+      double minDistance = double.infinity;
+      double bestT = 0.5;
+      Offset bestPt = stroke.points.first.position;
+
+      for (final pt in stroke.points) {
+        final d = _orthogonalDistanceToSegment(pt.position, a, b, edgeLen);
+        if (d < minDistance) {
+          minDistance = d;
+          bestPt = pt.position;
+          final t = ((pt.position.dx - a.dx) * edgeVec.dx +
+                  (pt.position.dy - a.dy) * edgeVec.dy) /
+              (edgeLen * edgeLen);
+          bestT = t.clamp(0.0, 1.0);
+        }
+      }
+
+      double edgeScore = 0.0;
+      if (minDistance <= 8.0) {
+        edgeScore = 1.0;
+      } else if (minDistance <= 30.0) {
+        edgeScore = (1.0 - (minDistance - 8.0) / 22.0).clamp(0.0, 1.0);
+      }
+
+      // Penalize touches trapped in corners
+      if (bestT < 0.12 || bestT > 0.88) {
+        edgeScore *= 0.6;
+      }
+
+      // Penalize edge if the closest point overshoots beyond the wall
+      final cp = (b.dx - a.dx) * (bestPt.dy - a.dy) -
+          (b.dy - a.dy) * (bestPt.dx - a.dx);
+      final cpRef = (b.dx - a.dx) * (quadCenter.dy - a.dy) -
+          (b.dy - a.dy) * (quadCenter.dx - a.dx);
+      if (cp != 0 && (cp > 0 ? 1 : -1) != (cpRef > 0 ? 1 : -1)) {
+        final overshoot = minDistance;
+        if (overshoot > 8.0) {
+          final overshootPen = ((overshoot - 8.0) / 20.0).clamp(0.0, 0.5);
+          edgeScore = (edgeScore - overshootPen).clamp(0.0, 1.0);
+        }
+      }
+
+      totalEdgeScore += edgeScore;
+    }
+
+    return (totalEdgeScore / 4.0).clamp(0.0, 1.0);
+  }
+
+  static double _computeSmoothnessScore(Stroke stroke) {
+    final points = stroke.points;
+    if (points.length < 12) return 0.5;
+
+    // 1. Count inflection reversals along stroke direction
+    int inflections = 0;
+    double prevTurn = 0.0;
+    for (int i = 2; i < points.length - 2; i++) {
+      final pPrev = points[i - 2].position;
+      final pCurr = points[i].position;
+      final pNext = points[i + 2].position;
+      final d1 = pCurr - pPrev;
+      final d2 = pNext - pCurr;
+      final turn = d1.dx * d2.dy - d1.dy * d2.dx;
+      if (turn.abs() > 20.0) {
+        if (prevTurn != 0.0 && (turn * prevTurn < 0)) {
+          inflections++;
+        }
+        prevTurn = turn;
+      }
+    }
+
+    // 2. Kinematic deceleration spikes (hesitation)
+    double hesitationSum = 0.0;
+    for (int i = 0; i < points.length - 2; i++) {
+      final pA = points[i];
+      final pB = points[i + 1];
+      final pC = points[i + 2];
+      final dt1 = math.max(
+        1.0,
+        (pB.timestampMicros - pA.timestampMicros) / 1000.0,
+      );
+      final dt2 = math.max(
+        1.0,
+        (pC.timestampMicros - pB.timestampMicros) / 1000.0,
+      );
+      final v1 = (pB.position - pA.position).distance / dt1;
+      final v2 = (pC.position - pB.position).distance / dt2;
+      final acc = (v2 - v1) / dt2;
+      if (acc < -0.05) {
+        hesitationSum += acc.abs();
+      }
+    }
+
+    final hesitationScore =
+        (1.0 - (hesitationSum / math.max(1, points.length))).clamp(0.0, 1.0);
+    final inflectionPen = (inflections / 6.0).clamp(0.0, 1.0);
+
+    return (1.0 - (inflectionPen * 0.65 + (1.0 - hesitationScore) * 0.35))
+        .clamp(0.0, 1.0);
+  }
+
+  static double _computePcaMinorAxisDelta({
+    required Stroke stroke,
+    required Offset center,
+    required double expectedMinorAxisAngleDeg,
+  }) {
+    final count = stroke.points.length;
+    if (count < 3) return 0.0;
+
+    double muXX = 0.0;
+    double muYY = 0.0;
+    double muXY = 0.0;
+
+    for (final pt in stroke.points) {
+      final dx = pt.position.dx - center.dx;
+      final dy = pt.position.dy - center.dy;
+      muXX += dx * dx;
+      muYY += dy * dy;
+      muXY += dx * dy;
+    }
+    muXX /= count;
+    muYY /= count;
+    muXY /= count;
+
+    final diff = muXX - muYY;
+    final delta = math.sqrt(diff * diff + 4.0 * muXY * muXY);
+    if (delta < 1.0) {
+      return 0.0;
+    }
+
+    final majorAngleRad = 0.5 * math.atan2(2.0 * muXY, diff);
+    final majorAngleDeg = (majorAngleRad * 180.0 / math.pi) % 180.0;
+    final minorAngleDeg = (majorAngleDeg + 90.0) % 180.0;
+
+    final angleDiff =
+        ((minorAngleDeg - expectedMinorAxisAngleDeg).abs()) % 180.0;
+    return angleDiff > 90.0 ? (180.0 - angleDiff) : angleDiff;
+  }
+
+  static double _orthogonalDistanceToLine(
+    Offset p,
+    Offset a,
+    Offset b,
+    double lineLength,
+  ) {
     if (lineLength == 0) return (p - a).distance;
     return ((b.dy - a.dy) * p.dx - (b.dx - a.dx) * p.dy + b.dx * a.dy - b.dy * a.dx).abs() / lineLength;
   }
 
-  static double _orthogonalDistanceToSegment(Offset p, Offset a, Offset b, double segmentLength) {
+  static double _orthogonalDistanceToSegment(
+    Offset p,
+    Offset a,
+    Offset b,
+    double segmentLength,
+  ) {
     if (segmentLength == 0) return (p - a).distance;
     final t = ((p.dx - a.dx) * (b.dx - a.dx) + (p.dy - a.dy) * (b.dy - a.dy)) / (segmentLength * segmentLength);
     final clampedT = t.clamp(0.0, 1.0);
