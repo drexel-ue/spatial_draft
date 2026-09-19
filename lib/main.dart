@@ -10,6 +10,7 @@ import 'drills/precision/ghosting_drill.dart';
 import 'drills/precision/isometric_drill.dart';
 import 'drills/sandbox/freeform_sandbox.dart';
 import 'onboarding/onboarding_modal.dart';
+import 'onboarding/splash_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,10 +33,12 @@ enum AppDrillMode {
 
 class SpatialDraftApp extends StatefulWidget {
   final bool autoShowOnboarding;
+  final bool showSplash;
 
   const SpatialDraftApp({
     super.key,
     this.autoShowOnboarding = true,
+    this.showSplash = false, // false for tests, toggleable
   });
 
   @override
@@ -44,6 +47,13 @@ class SpatialDraftApp extends StatefulWidget {
 
 class _SpatialDraftAppState extends State<SpatialDraftApp> {
   AppThemeMode _themeMode = AppThemeMode.dark;
+  late bool _displaySplash;
+
+  @override
+  void initState() {
+    super.initState();
+    _displaySplash = widget.showSplash;
+  }
 
   void _setThemeMode(AppThemeMode mode) {
     setState(() => _themeMode = mode);
@@ -60,11 +70,16 @@ class _SpatialDraftAppState extends State<SpatialDraftApp> {
         brightness: _themeMode == AppThemeMode.light ? Brightness.light : Brightness.dark,
         scaffoldBackgroundColor: theme.canvasBackground,
       ),
-      home: DraftingStudioScreen(
-        themeMode: _themeMode,
-        onThemeChanged: _setThemeMode,
-        autoShowOnboarding: widget.autoShowOnboarding,
-      ),
+      home: _displaySplash
+          ? SplashScreen(
+              onFinish: () => setState(() => _displaySplash = false),
+            )
+          : DraftingStudioScreen(
+              themeMode: _themeMode,
+              onThemeChanged: _setThemeMode,
+              autoShowOnboarding: widget.autoShowOnboarding,
+              onReplaySplash: () => setState(() => _displaySplash = true),
+            ),
     );
   }
 }
@@ -73,12 +88,14 @@ class DraftingStudioScreen extends StatefulWidget {
   final AppThemeMode themeMode;
   final ValueChanged<AppThemeMode> onThemeChanged;
   final bool autoShowOnboarding;
+  final VoidCallback? onReplaySplash;
 
   const DraftingStudioScreen({
     super.key,
     required this.themeMode,
     required this.onThemeChanged,
     required this.autoShowOnboarding,
+    this.onReplaySplash,
   });
 
   @override
@@ -484,6 +501,14 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
             icon: Icon(Icons.help_outline_rounded, color: theme.secondaryInk, size: 20),
             onPressed: _showOnboarding,
           ),
+
+          // Splash Screen [🎬]
+          if (widget.onReplaySplash != null)
+            IconButton(
+              tooltip: 'Preview Animated Splash',
+              icon: Icon(Icons.movie_filter_outlined, color: theme.secondaryInk, size: 20),
+              onPressed: widget.onReplaySplash,
+            ),
         ],
       ),
     );
