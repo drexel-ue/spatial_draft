@@ -28,7 +28,7 @@ enum AppDrillMode {
   final String shortLabel;
   final String fullLabel;
   final IconData icon;
-  const AppDrillMode(this.shortLabel, this.fullLabel, this.icon);
+  AppDrillMode(this.shortLabel, this.fullLabel, this.icon);
 }
 
 class SpatialDraftApp extends StatefulWidget {
@@ -425,7 +425,7 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
                   children: [
                     Icon(Icons.light_mode_outlined, size: 18),
                     SizedBox(width: 10),
-                    Text('Light Studio'),
+                    Expanded(child: Text('Light Studio')),
                   ],
                 ),
               ),
@@ -435,7 +435,7 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
                   children: [
                     Icon(Icons.dark_mode_outlined, size: 18),
                     SizedBox(width: 10),
-                    Text('Dark Obsidian'),
+                    Expanded(child: Text('Dark Obsidian')),
                   ],
                 ),
               ),
@@ -445,7 +445,7 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
                   children: [
                     Icon(Icons.brush_outlined, size: 18),
                     SizedBox(width: 10),
-                    Text('Drafting Blueprint'),
+                    Expanded(child: Text('Drafting Blueprint')),
                   ],
                 ),
               ),

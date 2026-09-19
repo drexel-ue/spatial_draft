@@ -198,93 +198,91 @@ class _GhostingDrillState extends State<GhostingDrill> with SingleTickerProvider
                     ),
                   ],
                 ),
-                child: Row(
-                  children: [
-                    // Score Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: _scoreColor(_lastResult!.overallScorePercent, theme).withOpacity(0.14),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _scoreColor(_lastResult!.overallScorePercent, theme).withOpacity(0.4),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      // Score Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _scoreColor(_lastResult!.overallScorePercent, theme).withOpacity(0.14),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _scoreColor(_lastResult!.overallScorePercent, theme).withOpacity(0.4),
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${_lastResult!.overallScorePercent}%',
+                              style: theme.headingStyle.copyWith(
+                                fontSize: 22,
+                                color: _scoreColor(_lastResult!.overallScorePercent, theme),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              'OVERALL',
+                              style: theme.monoStyle.copyWith(
+                                fontSize: 9,
+                                letterSpacing: 0.8,
+                                color: theme.secondaryInk,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '${_lastResult!.overallScorePercent}%',
-                            style: theme.headingStyle.copyWith(
-                              fontSize: 22,
-                              color: _scoreColor(_lastResult!.overallScorePercent, theme),
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          Text(
-                            'OVERALL',
-                            style: theme.monoStyle.copyWith(
-                              fontSize: 9,
-                              letterSpacing: 0.8,
-                              color: theme.secondaryInk,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 20),
+                      const SizedBox(width: 20),
 
-                    // Metrics Breakdown
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _MetricItem(
-                            label: 'PRECISION',
-                            value: '${(_lastResult!.linearAccuracy * 100).round()}%',
-                            detail: '±${_lastResult!.averageDeviationPx.toStringAsFixed(1)}px',
-                            theme: theme,
-                          ),
-                          _MetricItem(
-                            label: 'VELOCITY',
-                            value: '${(_lastResult!.velocityConsistency * 100).round()}%',
-                            detail: 'Flow consistency',
-                            theme: theme,
-                          ),
-                          _MetricItem(
-                            label: 'JITTER INDEX',
-                            value: _lastResult!.jitterIndex < 0.15 ? 'LOW' : (_lastResult!.jitterIndex < 0.35 ? 'MOD' : 'HIGH'),
-                            detail: 'Hesitation check',
-                            theme: theme,
-                            valueColor: _lastResult!.jitterIndex < 0.2 ? theme.success : theme.warning,
-                          ),
-                        ],
+                      // Metrics Breakdown
+                      _MetricItem(
+                        label: 'PRECISION',
+                        value: '${(_lastResult!.linearAccuracy * 100).round()}%',
+                        detail: '±${_lastResult!.averageDeviationPx.toStringAsFixed(1)}px',
+                        theme: theme,
                       ),
-                    ),
-
-                    const SizedBox(width: 16),
-
-                    // Actions: Next Reticle
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.borderHighlight,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        elevation: 0,
+                      const SizedBox(width: 20),
+                      _MetricItem(
+                        label: 'VELOCITY',
+                        value: '${(_lastResult!.velocityConsistency * 100).round()}%',
+                        detail: 'Flow consistency',
+                        theme: theme,
                       ),
-                      onPressed: _generateNewReticles,
-                      icon: const Icon(Icons.arrow_forward, size: 16),
-                      label: Text(
-                        'Next Reticle',
-                        style: theme.headingStyle.copyWith(
-                          fontSize: 13,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                      const SizedBox(width: 20),
+                      _MetricItem(
+                        label: 'JITTER INDEX',
+                        value: _lastResult!.jitterIndex < 0.15 ? 'LOW' : (_lastResult!.jitterIndex < 0.35 ? 'MOD' : 'HIGH'),
+                        detail: 'Hesitation check',
+                        theme: theme,
+                        valueColor: _lastResult!.jitterIndex < 0.2 ? theme.success : theme.warning,
+                      ),
+
+                      const SizedBox(width: 24),
+
+                      // Actions: Next Reticle
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.borderHighlight,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          elevation: 0,
+                        ),
+                        onPressed: _generateNewReticles,
+                        icon: const Icon(Icons.arrow_forward, size: 16),
+                        label: Text(
+                          'Next Reticle',
+                          style: theme.headingStyle.copyWith(
+                            fontSize: 13,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

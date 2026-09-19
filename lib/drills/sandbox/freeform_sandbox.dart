@@ -33,6 +33,14 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
     });
   }
 
+  void _undo() {
+    setState(_strokes.removeLast);
+  }
+
+  void _clear() {
+    setState(_strokes.clear);
+  }
+
   void _openGuide() {
     ConceptGuideSheet.show(
       context: context,
@@ -159,12 +167,12 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
 
                   IconButton(
                     icon: Icon(Icons.undo_rounded, color: theme.secondaryInk, size: 20),
-                    onPressed: _strokes.isNotEmpty ? () => setState(() => _strokes.removeLast()) : null,
+                    onPressed: _strokes.isNotEmpty ? _undo : null,
                     tooltip: 'Undo',
                   ),
                   IconButton(
                     icon: Icon(Icons.delete_outline_rounded, color: theme.secondaryInk, size: 20),
-                    onPressed: _strokes.isNotEmpty ? () => setState(() => _strokes.clear()) : null,
+                    onPressed: _strokes.isNotEmpty ? _clear : null,
                     tooltip: 'Clear Canvas',
                   ),
                 ],

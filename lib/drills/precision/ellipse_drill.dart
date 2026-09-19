@@ -189,84 +189,81 @@ class _EllipseDrillState extends State<EllipseDrill> {
                     ),
                   ],
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: (_lastResult!.passed ? theme.success : theme.warning).withOpacity(0.14),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: (_lastResult!.passed ? theme.success : theme.warning).withOpacity(0.4),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: (_lastResult!.passed ? theme.success : theme.warning).withOpacity(0.14),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: (_lastResult!.passed ? theme.success : theme.warning).withOpacity(0.4),
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${_lastResult!.overallScorePercent}%',
+                              style: theme.headingStyle.copyWith(
+                                fontSize: 22,
+                                color: _lastResult!.passed ? theme.success : theme.warning,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              'ACCURACY',
+                              style: theme.monoStyle.copyWith(
+                                fontSize: 9,
+                                letterSpacing: 0.8,
+                                color: theme.secondaryInk,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '${_lastResult!.overallScorePercent}%',
-                            style: theme.headingStyle.copyWith(
-                              fontSize: 22,
-                              color: _lastResult!.passed ? theme.success : theme.warning,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          Text(
-                            'ACCURACY',
-                            style: theme.monoStyle.copyWith(
-                              fontSize: 9,
-                              letterSpacing: 0.8,
-                              color: theme.secondaryInk,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 20),
+                      const SizedBox(width: 20),
 
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _MetricItem(
-                            label: 'TANGENCY',
-                            value: '${(_lastResult!.tangencyScore * 100).round()}%',
-                            detail: 'Wall contact',
-                            theme: theme,
-                          ),
-                          _MetricItem(
-                            label: 'AXIS DELTA',
-                            value: '${_lastResult!.minorAxisErrorDeg.toStringAsFixed(1)}°',
-                            detail: 'Minor axis deviation',
-                            theme: theme,
-                            valueColor: _lastResult!.minorAxisErrorDeg < 8 ? theme.success : theme.warning,
-                          ),
-                        ],
+                      _MetricItem(
+                        label: 'TANGENCY',
+                        value: '${(_lastResult!.tangencyScore * 100).round()}%',
+                        detail: 'Wall contact',
+                        theme: theme,
                       ),
-                    ),
-
-                    const SizedBox(width: 16),
-
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.borderHighlight,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        elevation: 0,
+                      const SizedBox(width: 20),
+                      _MetricItem(
+                        label: 'AXIS DELTA',
+                        value: '${_lastResult!.minorAxisErrorDeg.toStringAsFixed(1)}°',
+                        detail: 'Minor axis deviation',
+                        theme: theme,
+                        valueColor: _lastResult!.minorAxisErrorDeg < 8 ? theme.success : theme.warning,
                       ),
-                      onPressed: _generatePerspectivePlane,
-                      icon: const Icon(Icons.arrow_forward, size: 16),
-                      label: Text(
-                        'Next Plane',
-                        style: theme.headingStyle.copyWith(
-                          fontSize: 13,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+
+                      const SizedBox(width: 24),
+
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.borderHighlight,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          elevation: 0,
+                        ),
+                        onPressed: _generatePerspectivePlane,
+                        icon: const Icon(Icons.arrow_forward, size: 16),
+                        label: Text(
+                          'Next Plane',
+                          style: theme.headingStyle.copyWith(
+                            fontSize: 13,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

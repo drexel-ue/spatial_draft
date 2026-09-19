@@ -38,6 +38,10 @@ class _PoseMannequinDrillState extends State<PoseMannequinDrill> {
     _poseSeed = math.Random().nextInt(1000);
   }
 
+  void _undo() {
+    setState(_strokes.removeLast);
+  }
+
   void _generateNewPose() {
     setState(() {
       _poseSeed = math.Random().nextInt(1000);
@@ -136,67 +140,68 @@ class _PoseMannequinDrillState extends State<PoseMannequinDrill> {
                   ),
                 ],
               ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: theme.accentCyan.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(10),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: theme.accentCyan.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.directions_run_rounded, color: theme.accentCyan, size: 20),
                     ),
-                    child: Icon(Icons.directions_run_rounded, color: theme.accentCyan, size: 20),
-                  ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'DYNAMIC KINEMATIC POSE',
-                        style: theme.monoStyle.copyWith(
-                          fontSize: 10,
-                          letterSpacing: 0.8,
-                          color: theme.secondaryInk,
+                    const SizedBox(width: 14),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'DYNAMIC KINEMATIC POSE',
+                          style: theme.monoStyle.copyWith(
+                            fontSize: 10,
+                            letterSpacing: 1.2,
+                            fontWeight: FontWeight.w700,
+                            color: theme.secondaryInk,
+                          ),
+                        ),
+                        Text(
+                          'Contrapposto & Action Spline',
+                          style: theme.headingStyle.copyWith(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 24),
+                    IconButton(
+                      icon: Icon(Icons.undo, color: theme.secondaryInk, size: 20),
+                      onPressed: _strokes.isNotEmpty ? _undo : null,
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.borderHighlight,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        elevation: 0,
+                      ),
+                      onPressed: _generateNewPose,
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: Text(
+                        'Next Pose',
+                        style: theme.headingStyle.copyWith(
+                          fontSize: 12,
+                          color: Colors.white,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      Text(
-                        'Contrapposto & Action Spline',
-                        style: theme.headingStyle.copyWith(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: Icon(Icons.undo, color: theme.secondaryInk, size: 20),
-                    onPressed: _strokes.isNotEmpty
-                        ? () => setState(() => _strokes.removeLast())
-                        : null,
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.borderHighlight,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      elevation: 0,
                     ),
-                    onPressed: _generateNewPose,
-                    icon: const Icon(Icons.refresh, size: 16),
-                    label: Text(
-                      'Next Pose',
-                      style: theme.headingStyle.copyWith(
-                        fontSize: 12,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

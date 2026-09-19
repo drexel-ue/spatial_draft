@@ -59,6 +59,10 @@ class _IsometricDrillState extends State<IsometricDrill> {
     });
   }
 
+  void _undo() {
+    setState(_strokes.removeLast);
+  }
+
   void _openGuide() {
     ConceptGuideSheet.show(
       context: context,
@@ -205,9 +209,7 @@ class _IsometricDrillState extends State<IsometricDrill> {
                   // Actions: Clear / New Part
                   IconButton(
                     icon: Icon(Icons.undo, color: theme.secondaryInk, size: 20),
-                    onPressed: _strokes.isNotEmpty
-                        ? () => setState(() => _strokes.removeLast())
-                        : null,
+                    onPressed: _strokes.isNotEmpty ? _undo : null,
                     tooltip: 'Undo Stroke',
                   ),
                   const SizedBox(width: 6),
