@@ -37,6 +37,13 @@ enum AppDrillMode {
     Icons.directions_run_rounded,
   ),
 
+  /// Procedural constructive shapes, 3D volumes, and anatomy library.
+  formLibrary(
+    'Form Library',
+    'Procedural Shapes & Anatomy',
+    Icons.category_rounded,
+  ),
+
   /// Unconstrained freeform infinite drafting sandbox.
   sandbox(
     'Sandbox',

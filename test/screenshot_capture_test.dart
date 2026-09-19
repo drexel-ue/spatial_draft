@@ -9,12 +9,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spatial_draft/core/models/app_drill_mode.dart';
 import 'package:spatial_draft/core/models/draft_capture.dart';
+import 'package:spatial_draft/core/models/procedural_form.dart';
 import 'package:spatial_draft/core/models/skill_profile.dart';
 import 'package:spatial_draft/core/theme/app_theme.dart';
 import 'package:spatial_draft/core/widgets/skill_profile_dialog.dart';
 import 'package:spatial_draft/drills/common/concept_guide_sheet.dart';
 import 'package:spatial_draft/drills/form/loomis_head_drill.dart';
 import 'package:spatial_draft/drills/form/pose_mannequin_drill.dart';
+import 'package:spatial_draft/drills/form/procedural_form_drill.dart';
 import 'package:spatial_draft/drills/precision/ellipse_drill.dart';
 import 'package:spatial_draft/drills/precision/ghosting_drill.dart';
 import 'package:spatial_draft/drills/precision/isometric_drill.dart';
@@ -22,6 +24,7 @@ import 'package:spatial_draft/drills/sandbox/freeform_sandbox.dart';
 import 'package:spatial_draft/onboarding/onboarding_modal.dart';
 import 'package:spatial_draft/onboarding/splash_screen.dart';
 import 'package:spatial_draft/services/gallery_service.dart';
+import 'package:spatial_draft/views/form_library/form_library_sheet.dart';
 import 'package:spatial_draft/views/gallery/gallery_screen.dart';
 
 Future<void> _loadFont(String family, String assetPath) async {
@@ -467,6 +470,44 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       await captureScreen(tester, '12_draft_gallery_view');
+    });
+
+    testWidgets('13 Procedural Form Practice Drill', (tester) async {
+      tester.view.physicalSize = ipadMiniSize;
+      tester.view.devicePixelRatio = 1.5;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        buildTestScreen(
+          ProceduralFormDrill(
+            theme: AppThemeTokens.dark(),
+            gridStyle: GridStyle.solid,
+            gridType: GridType.perspective,
+            skillProfile: profile,
+            onProfileUpdated: () {},
+            initialFormId: ProceduralFormId.eyeOrbit,
+          ),
+        ),
+      );
+      await captureScreen(tester, '13_procedural_form_drill');
+    });
+
+    testWidgets('14 Procedural Form & Anatomy Library', (tester) async {
+      tester.view.physicalSize = ipadMiniSize;
+      tester.view.devicePixelRatio = 1.5;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        buildTestScreen(
+          FormLibrarySheet(
+            theme: AppThemeTokens.dark(),
+            onSelectForm: (_) {},
+            initialSelectedId: ProceduralFormId.eyeOrbit,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await captureScreen(tester, '14_procedural_form_library');
     });
   });
 }
