@@ -151,11 +151,12 @@ class _OnboardingModalState extends State<OnboardingModal> {
                 itemBuilder: (ctx, i) {
                   final slide = _slides[i];
                   return Padding(
-                    padding: const EdgeInsets.fromLTRB(32, 20, 32, 16),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                    padding: const EdgeInsets.fromLTRB(32, 16, 32, 16),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                         Container(
                           width: 56,
                           height: 56,
@@ -219,8 +220,9 @@ class _OnboardingModalState extends State<OnboardingModal> {
                         ),
                       ],
                     ),
-                  );
-                },
+                  ),
+                );
+              },
               ),
             ),
 

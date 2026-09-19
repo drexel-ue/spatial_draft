@@ -66,16 +66,66 @@ class AppThemeTokens {
     required this.monoStyle,
   });
 
+  static TextStyle createHeadingStyle({
+    Color? color,
+    double? fontSize,
+    FontWeight? fontWeight,
+    double? letterSpacing,
+  }) {
+    return TextStyle(
+      fontFamily: 'SpaceGrotesk',
+      fontFamilyFallback: const ['Outfit', 'sans-serif'],
+      color: color,
+      fontSize: fontSize,
+      fontWeight: fontWeight ?? FontWeight.w700,
+      letterSpacing: letterSpacing,
+    );
+  }
+
+  static TextStyle createBodyStyle({
+    Color? color,
+    double? fontSize,
+    FontWeight? fontWeight,
+    double? letterSpacing,
+    double? height,
+  }) {
+    return TextStyle(
+      fontFamily: 'Inter',
+      fontFamilyFallback: const ['sans-serif'],
+      color: color,
+      fontSize: fontSize ?? 14,
+      fontWeight: fontWeight ?? FontWeight.normal,
+      letterSpacing: letterSpacing,
+      height: height,
+    );
+  }
+
+  static TextStyle createMonoStyle({
+    Color? color,
+    double? fontSize,
+    FontWeight? fontWeight,
+    double? letterSpacing,
+  }) {
+    return TextStyle(
+      fontFamily: 'JetBrainsMono',
+      fontFamilyFallback: const ['FiraCode', 'monospace'],
+      color: color,
+      fontSize: fontSize ?? 12,
+      fontWeight: fontWeight ?? FontWeight.normal,
+      letterSpacing: letterSpacing,
+    );
+  }
+
   static AppThemeTokens light() {
-    final baseHeading = GoogleFonts.spaceGrotesk(
+    final baseHeading = createHeadingStyle(
       color: const Color(0xFF111827),
       fontWeight: FontWeight.w700,
     );
-    final baseBody = GoogleFonts.inter(
+    final baseBody = createBodyStyle(
       color: const Color(0xFF374151),
       fontSize: 14,
     );
-    final baseMono = GoogleFonts.jetBrainsMono(
+    final baseMono = createMonoStyle(
       color: const Color(0xFF1E293B),
       fontSize: 12,
     );
@@ -104,15 +154,15 @@ class AppThemeTokens {
   }
 
   static AppThemeTokens dark() {
-    final baseHeading = GoogleFonts.spaceGrotesk(
+    final baseHeading = createHeadingStyle(
       color: const Color(0xFFF8FAFC),
       fontWeight: FontWeight.w700,
     );
-    final baseBody = GoogleFonts.inter(
+    final baseBody = createBodyStyle(
       color: const Color(0xFFCBD5E1),
       fontSize: 14,
     );
-    final baseMono = GoogleFonts.jetBrainsMono(
+    final baseMono = createMonoStyle(
       color: const Color(0xFFE2E8F0),
       fontSize: 12,
     );
@@ -141,15 +191,15 @@ class AppThemeTokens {
   }
 
   static AppThemeTokens blueprint() {
-    final baseHeading = GoogleFonts.spaceGrotesk(
+    final baseHeading = createHeadingStyle(
       color: const Color(0xFFF0F9FF),
       fontWeight: FontWeight.w700,
     );
-    final baseBody = GoogleFonts.inter(
+    final baseBody = createBodyStyle(
       color: const Color(0xFFBAE6FD),
       fontSize: 14,
     );
-    final baseMono = GoogleFonts.jetBrainsMono(
+    final baseMono = createMonoStyle(
       color: const Color(0xFF7DD3FC),
       fontSize: 12,
     );

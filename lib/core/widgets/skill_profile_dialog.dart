@@ -46,10 +46,11 @@ class SkillProfileDialog extends StatelessWidget {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Header
             Row(
               children: [
@@ -224,7 +225,8 @@ class SkillProfileDialog extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }
 

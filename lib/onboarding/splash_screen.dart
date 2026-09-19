@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../core/theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
   final VoidCallback onFinish;
@@ -117,7 +117,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                           // App Title
                           Text(
                             'SPATIAL DRAFT',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AppThemeTokens.createHeadingStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 4.0,
@@ -130,7 +130,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                           // Subtitle
                           Text(
                             'ADAPTIVE KINEMATIC DRAFTING',
-                            style: GoogleFonts.jetBrainsMono(
+                            style: AppThemeTokens.createMonoStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 1.8,
@@ -174,7 +174,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
                           Text(
                             'CALIBRATING NEUROMOTOR ENGINE...',
-                            style: GoogleFonts.jetBrainsMono(
+                            style: AppThemeTokens.createMonoStyle(
                               fontSize: 9,
                               color: const Color(0xFF64748B),
                               letterSpacing: 1.2,
@@ -197,7 +197,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   onPressed: widget.onFinish,
                   child: Text(
                     'Skip ➔',
-                    style: GoogleFonts.jetBrainsMono(
+                    style: AppThemeTokens.createMonoStyle(
                       color: const Color(0xFF64748B),
                       fontSize: 12,
                     ),

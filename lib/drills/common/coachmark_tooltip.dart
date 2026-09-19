@@ -77,15 +77,16 @@ class CoachmarkTooltip extends StatelessWidget {
             ),
             if (onOpenGuide != null) ...[
               const SizedBox(width: 8),
-              TextButton(
+              TextButton.icon(
                 onPressed: onOpenGuide,
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text(
-                  'Guide ℹ️',
+                icon: Icon(Icons.info_outline_rounded, size: 14, color: theme.accentCyan),
+                label: Text(
+                  'Guide',
                   style: theme.monoStyle.copyWith(
                     color: theme.accentCyan,
                     fontSize: 12,

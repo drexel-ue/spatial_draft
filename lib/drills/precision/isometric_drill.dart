@@ -143,7 +143,9 @@ class _IsometricDrillState extends State<IsometricDrill> {
                   ),
                 ],
               ),
-              child: Row(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
                 children: [
                   Text(
                     'LINE HIERARCHY:',
@@ -198,7 +200,7 @@ class _IsometricDrillState extends State<IsometricDrill> {
                     );
                   }),
 
-                  const Spacer(),
+                  const SizedBox(width: 24),
 
                   // Actions: Clear / New Part
                   IconButton(
@@ -231,6 +233,7 @@ class _IsometricDrillState extends State<IsometricDrill> {
                 ],
               ),
             ),
+          ),
           ),
         ),
       ],

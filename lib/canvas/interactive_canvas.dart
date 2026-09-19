@@ -40,10 +40,39 @@ class InteractiveCanvas extends StatefulWidget {
 }
 
 class _InteractiveCanvasState extends State<InteractiveCanvas> {
-  final TransformationController _transformController = TransformationController();
+  late final TransformationController _transformController;
   final List<StrokePoint> _activePoints = [];
   bool _isDrawing = false;
   int _activePointerId = -1;
+
+  @override
+  void initState() {
+    super.initState();
+    _transformController = TransformationController(
+      Matrix4.identity()..translate(-1433.0, -1628.0),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _centerCanvas();
+      }
+    });
+  }
+
+  void _centerCanvas() {
+    final renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox != null && renderBox.hasSize) {
+      final size = renderBox.size;
+      final tx = (size.width - 4000.0) / 2.0;
+      final ty = (size.height - 4000.0) / 2.0;
+      _transformController.value = Matrix4.identity()..translate(tx, ty);
+    }
+  }
+
+  @override
+  void dispose() {
+    _transformController.dispose();
+    super.dispose();
+  }
 
   Color get _currentInkColor => widget.overrideInkColor ?? widget.theme.defaultInk;
 
