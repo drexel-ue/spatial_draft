@@ -1,13 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
+import 'package:spatial_draft/core/theme/app_theme.dart';
 
 class CoachmarkTooltip extends StatelessWidget {
-  final String title;
-  final String message;
-  final IconData icon;
-  final AppThemeTokens theme;
-  final VoidCallback onDismiss;
-  final VoidCallback? onOpenGuide;
 
   const CoachmarkTooltip({
     super.key,
@@ -18,6 +12,12 @@ class CoachmarkTooltip extends StatelessWidget {
     required this.onDismiss,
     this.onOpenGuide,
   });
+  final String title;
+  final String message;
+  final IconData icon;
+  final AppThemeTokens theme;
+  final VoidCallback onDismiss;
+  final VoidCallback? onOpenGuide;
 
   @override
   Widget build(BuildContext context) {

@@ -1,18 +1,13 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../../canvas/interactive_canvas.dart';
-import '../../core/models/skill_profile.dart';
-import '../../core/models/stroke.dart';
-import '../../core/theme/app_theme.dart';
-import '../common/coachmark_tooltip.dart';
-import '../common/concept_guide_sheet.dart';
+import 'package:spatial_draft/canvas/interactive_canvas.dart';
+import 'package:spatial_draft/core/models/skill_profile.dart';
+import 'package:spatial_draft/core/models/stroke.dart';
+import 'package:spatial_draft/core/theme/app_theme.dart';
+import 'package:spatial_draft/drills/common/coachmark_tooltip.dart';
+import 'package:spatial_draft/drills/common/concept_guide_sheet.dart';
 
 class IsometricDrill extends StatefulWidget {
-  final AppThemeTokens theme;
-  final GridStyle gridStyle;
-  final GridType gridType;
-  final SkillProfile skillProfile;
-  final VoidCallback onProfileUpdated;
 
   const IsometricDrill({
     super.key,
@@ -22,6 +17,11 @@ class IsometricDrill extends StatefulWidget {
     required this.skillProfile,
     required this.onProfileUpdated,
   });
+  final AppThemeTokens theme;
+  final GridStyle gridStyle;
+  final GridType gridType;
+  final SkillProfile skillProfile;
+  final VoidCallback onProfileUpdated;
 
   @override
   State<IsometricDrill> createState() => _IsometricDrillState();
@@ -244,13 +244,13 @@ class _IsometricDrillState extends State<IsometricDrill> {
 }
 
 class _IsometricVoxelPainter extends CustomPainter {
-  final AppThemeTokens theme;
-  final int seed;
 
   _IsometricVoxelPainter({
     required this.theme,
     required this.seed,
   });
+  final AppThemeTokens theme;
+  final int seed;
 
   @override
   void paint(Canvas canvas, Size size) {

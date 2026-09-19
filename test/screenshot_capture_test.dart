@@ -6,6 +6,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:spatial_draft/core/models/app_drill_mode.dart';
+import 'package:spatial_draft/core/models/draft_capture.dart';
 import 'package:spatial_draft/core/models/skill_profile.dart';
 import 'package:spatial_draft/core/theme/app_theme.dart';
 import 'package:spatial_draft/core/widgets/skill_profile_dialog.dart';
@@ -18,6 +21,8 @@ import 'package:spatial_draft/drills/precision/isometric_drill.dart';
 import 'package:spatial_draft/drills/sandbox/freeform_sandbox.dart';
 import 'package:spatial_draft/onboarding/onboarding_modal.dart';
 import 'package:spatial_draft/onboarding/splash_screen.dart';
+import 'package:spatial_draft/services/gallery_service.dart';
+import 'package:spatial_draft/views/gallery/gallery_screen.dart';
 
 Future<void> _loadFont(String family, String assetPath) async {
   final File file = File(assetPath);
@@ -357,6 +362,111 @@ void main() {
         ),
       );
       await captureScreen(tester, '11_concept_guide_sheet');
+    });
+
+    testWidgets('12 Draft Gallery View', (tester) async {
+      tester.view.physicalSize = ipadMiniSize;
+      tester.view.devicePixelRatio = 1.5;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      SharedPreferences.setMockInitialValues({});
+      await GalleryService.instance.init();
+      await GalleryService.instance.clearAll();
+
+      Uint8List ghostingBytes = Uint8List(0);
+      final f1 = File('screenshots/01_ghosting_drill.png');
+      if (f1.existsSync()) ghostingBytes = f1.readAsBytesSync();
+
+      Uint8List isoBytes = Uint8List(0);
+      final f2 = File('screenshots/03_isometric_carveout_drill.png');
+      if (f2.existsSync()) isoBytes = f2.readAsBytesSync();
+
+      Uint8List loomisBytes = Uint8List(0);
+      final f3 = File('screenshots/04_loomis_head_drill.png');
+      if (f3.existsSync()) loomisBytes = f3.readAsBytesSync();
+
+      Uint8List blueprintBytes = Uint8List(0);
+      final f4 = File('screenshots/07_blueprint_drafting_mode.png');
+      if (f4.existsSync()) blueprintBytes = f4.readAsBytesSync();
+
+      await GalleryService.instance.saveCapture(
+        DraftCapture(
+          id: '4',
+          title: 'Kinematic Shoulder Stroke Ghosting',
+          drillMode: AppDrillMode.ghosting,
+          themeMode: AppThemeMode.dark,
+          gridStyle: GridStyle.solid,
+          gridType: GridType.squareMetric,
+          timestamp: DateTime(2026, 9, 19, 11, 5),
+          pngBytes: ghostingBytes,
+          width: 2266,
+          height: 1488,
+        ),
+      );
+
+      await GalleryService.instance.saveCapture(
+        DraftCapture(
+          id: '3',
+          title: 'Loomis Cranial Matrix #4',
+          drillMode: AppDrillMode.loomisHead,
+          themeMode: AppThemeMode.dark,
+          gridStyle: GridStyle.dotted,
+          gridType: GridType.squareMetric,
+          timestamp: DateTime(2026, 9, 19, 13, 20),
+          pngBytes: loomisBytes,
+          width: 2266,
+          height: 1488,
+        ),
+      );
+
+      await GalleryService.instance.saveCapture(
+        DraftCapture(
+          id: '1',
+          title: '3D Isometric Voxel Study',
+          drillMode: AppDrillMode.isometric,
+          themeMode: AppThemeMode.dark,
+          gridStyle: GridStyle.solid,
+          gridType: GridType.isometric,
+          timestamp: DateTime(2026, 9, 19, 14, 12),
+          pngBytes: isoBytes,
+          width: 2266,
+          height: 1488,
+        ),
+      );
+
+      await GalleryService.instance.saveCapture(
+        DraftCapture(
+          id: '2',
+          title: 'Cyanotype Blueprint Carve-Out',
+          drillMode: AppDrillMode.isometric,
+          themeMode: AppThemeMode.blueprint,
+          gridStyle: GridStyle.solid,
+          gridType: GridType.isometric,
+          timestamp: DateTime(2026, 9, 19, 15, 45),
+          pngBytes: blueprintBytes,
+          width: 2266,
+          height: 1488,
+        ),
+      );
+
+      await tester.pumpWidget(
+        buildTestScreen(
+          GalleryScreen(theme: AppThemeTokens.dark()),
+        ),
+      );
+      await tester.runAsync(() async {
+        for (final capture in GalleryService.instance.captures) {
+          if (capture.pngBytes.isNotEmpty) {
+            await precacheImage(
+              MemoryImage(capture.pngBytes),
+              tester.element(find.byType(GalleryScreen)),
+            );
+          }
+        }
+      });
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await captureScreen(tester, '12_draft_gallery_view');
     });
   });
 }

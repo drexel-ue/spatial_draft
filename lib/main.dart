@@ -1,6 +1,10 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:spatial_draft/core/models/app_drill_mode.dart';
+import 'package:spatial_draft/core/models/draft_capture.dart';
 import 'package:spatial_draft/core/models/skill_profile.dart';
 import 'package:spatial_draft/core/theme/app_theme.dart';
 import 'package:spatial_draft/core/widgets/skill_profile_dialog.dart';
@@ -14,13 +18,20 @@ import 'package:spatial_draft/drills/sandbox/freeform_sandbox.dart';
 import 'package:spatial_draft/onboarding/onboarding_modal.dart';
 import 'package:spatial_draft/onboarding/splash_screen.dart';
 import 'package:spatial_draft/services/app_log_service.dart';
+import 'package:spatial_draft/services/gallery_service.dart';
 import 'package:spatial_draft/views/diagnostics/crash_report_screen.dart';
+import 'package:spatial_draft/views/gallery/gallery_screen.dart';
+
+export 'package:spatial_draft/core/models/app_drill_mode.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize logging and crash reporting first
   await AppLogService.instance.init();
+
+  // Initialize draft gallery archive
+  await GalleryService.instance.init();
 
   // Global Flutter framework error hook
   FlutterError.onError = (details) {
@@ -50,29 +61,15 @@ Future<void> main() async {
   runApp(const SpatialDraftApp());
 }
 
-enum AppDrillMode {
-  ghosting('Line Quality', 'Ghosting & Acceleration (Wk 1)', Icons.timeline_rounded),
-  ellipse('Ellipses', 'Perspective Ellipses (Wk 2)', Icons.radio_button_unchecked_rounded),
-  isometric('Isometric', '3D Voxel Carving (Wk 3)', Icons.view_in_ar_rounded),
-  loomisHead('Loomis Head', '3D Cranial Planes (Form)', Icons.face_retouching_natural_rounded),
-  poseGesture('Pose Gesture', 'Kinematic Mannequin (Form)', Icons.directions_run_rounded),
-  sandbox('Sandbox', 'Infinite Drafting Canvas', Icons.draw_rounded);
-
-  final String shortLabel;
-  final String fullLabel;
-  final IconData icon;
-  AppDrillMode(this.shortLabel, this.fullLabel, this.icon);
-}
-
 class SpatialDraftApp extends StatefulWidget {
-  final bool autoShowOnboarding;
-  final bool showSplash;
 
   const SpatialDraftApp({
     super.key,
     this.autoShowOnboarding = true,
     this.showSplash = false, // false for tests, toggleable
   });
+  final bool autoShowOnboarding;
+  final bool showSplash;
 
   @override
   State<SpatialDraftApp> createState() => _SpatialDraftAppState();
@@ -118,10 +115,6 @@ class _SpatialDraftAppState extends State<SpatialDraftApp> {
 }
 
 class DraftingStudioScreen extends StatefulWidget {
-  final AppThemeMode themeMode;
-  final ValueChanged<AppThemeMode> onThemeChanged;
-  final bool autoShowOnboarding;
-  final VoidCallback? onReplaySplash;
 
   const DraftingStudioScreen({
     super.key,
@@ -130,6 +123,10 @@ class DraftingStudioScreen extends StatefulWidget {
     required this.autoShowOnboarding,
     this.onReplaySplash,
   });
+  final AppThemeMode themeMode;
+  final ValueChanged<AppThemeMode> onThemeChanged;
+  final bool autoShowOnboarding;
+  final VoidCallback? onReplaySplash;
 
   @override
   State<DraftingStudioScreen> createState() => _DraftingStudioScreenState();
@@ -142,6 +139,9 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
 
   final SkillProfile _skillProfile = SkillProfile();
   bool _hasSeenOnboarding = false;
+  final GlobalKey _canvasCaptureKey = GlobalKey();
+  bool _isCapturing = false;
+  double _flashOpacity = 0.0;
 
   @override
   void initState() {
@@ -171,6 +171,95 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
       profile: _skillProfile,
       theme: theme,
     );
+  }
+
+  void _openGallery() {
+    final theme = AppThemeTokens.of(widget.themeMode);
+    GalleryScreen.open(
+      context: context,
+      theme: theme,
+    );
+  }
+
+  Future<void> _captureCanvasSnapshot() async {
+    if (_isCapturing) return;
+    setState(() {
+      _isCapturing = true;
+      _flashOpacity = 0.7;
+    });
+
+    try {
+      await HapticFeedback.mediumImpact();
+      final boundary = _canvasCaptureKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
+      if (boundary == null) return;
+
+      final image = await boundary.toImage(pixelRatio: 1.5);
+      final byteData = await image.toByteData(
+        format: ImageByteFormat.png,
+      );
+      if (byteData == null) return;
+
+      final pngBytes = byteData.buffer.asUint8List();
+      final now = DateTime.now();
+      final capture = DraftCapture(
+        id: now.millisecondsSinceEpoch.toString(),
+        title: '${_currentDrill.shortLabel} Draft',
+        drillMode: _currentDrill,
+        themeMode: widget.themeMode,
+        gridStyle: _gridStyle,
+        gridType: _gridType,
+        timestamp: now,
+        pngBytes: pngBytes,
+        width: image.width,
+        height: image.height,
+      );
+
+      await GalleryService.instance.saveCapture(capture);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(
+                Icons.check_circle_outline,
+                color: Colors.white,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Snapshot saved to Gallery (${capture.resolutionLabel})',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: widget.themeMode == AppThemeMode.light
+              ? const Color(0xFF0284C7)
+              : const Color(0xFF0284C7),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'VIEW',
+            textColor: Colors.white,
+            onPressed: _openGallery,
+          ),
+        ),
+      );
+    } catch (e, stack) {
+      AppLogService.instance.error(
+        'GALLERY',
+        'Failed to take canvas capture: $e',
+        stackTrace: stack,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCapturing = false;
+          _flashOpacity = 0.0;
+        });
+      }
+    }
   }
 
   void _openDiagnostics() {
@@ -339,7 +428,24 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
 
             // Active Drill View
             Expanded(
-              child: _buildActiveDrill(theme),
+              child: Stack(
+                children: [
+                  RepaintBoundary(
+                    key: _canvasCaptureKey,
+                    child: _buildActiveDrill(theme),
+                  ),
+                  IgnorePointer(
+                    child: AnimatedOpacity(
+                      opacity: _flashOpacity,
+                      duration: const Duration(milliseconds: 150),
+                      child: const ColoredBox(
+                        color: Colors.white,
+                        child: SizedBox.expand(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -350,102 +456,133 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
   Widget _buildTopBar(AppThemeTokens theme) {
     return Container(
       height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: theme.surfaceBackground,
-        border: Border(bottom: BorderSide(color: theme.borderSubtle, width: 1.2)),
+        border: Border(
+          bottom: BorderSide(color: theme.borderSubtle, width: 1.2),
+        ),
       ),
       child: Row(
         children: [
-          // Logo & Branding
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: theme.accentCyan.withOpacity(0.14),
-                  borderRadius: BorderRadius.circular(8),
+            // Logo & Branding
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: theme.accentCyan.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.architecture_rounded,
+                    color: theme.accentCyan,
+                    size: 20,
+                  ),
                 ),
-                child: Icon(Icons.architecture_rounded, color: theme.accentCyan, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'SPATIAL DRAFT',
-                    style: theme.headingStyle.copyWith(
-                      fontSize: 13,
-                      letterSpacing: 1.2,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  Text(
-                    'ADAPTIVE KINEMATIC DRAFTING',
-                    style: theme.monoStyle.copyWith(
-                      fontSize: 8,
-                      letterSpacing: 0.8,
-                      color: theme.secondaryInk,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          const SizedBox(width: 20),
-
-          // Drill Selector Chips
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: AppDrillMode.values.map((drill) {
-                  final isSelected = _currentDrill == drill;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: InkWell(
-                      onTap: () => setState(() => _currentDrill = drill),
-                      borderRadius: BorderRadius.circular(8),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isSelected ? theme.borderHighlight.withOpacity(0.15) : Colors.transparent,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isSelected ? theme.borderHighlight : Colors.transparent,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              drill.icon,
-                              size: 14,
-                              color: isSelected ? theme.borderHighlight : theme.secondaryInk,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              drill.shortLabel,
-                              style: theme.headingStyle.copyWith(
-                                fontSize: 12,
-                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                color: isSelected ? theme.borderHighlight : theme.secondaryInk,
-                              ),
-                            ),
-                          ],
-                        ),
+                const SizedBox(width: 10),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'SPATIAL DRAFT',
+                      style: theme.headingStyle.copyWith(
+                        fontSize: 13,
+                        letterSpacing: 1.2,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                  );
-                }).toList(),
+                    Text(
+                      'ADAPTIVE KINEMATIC DRAFTING',
+                      style: theme.monoStyle.copyWith(
+                        fontSize: 8,
+                        letterSpacing: 0.8,
+                        color: theme.secondaryInk,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            const SizedBox(width: 12),
+
+            // Drill Selector Chips
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: AppDrillMode.values.map((drill) {
+                    final isSelected = _currentDrill == drill;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: InkWell(
+                        onTap: () => setState(() => _currentDrill = drill),
+                        borderRadius: BorderRadius.circular(8),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? theme.borderHighlight.withOpacity(0.15)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isSelected
+                                  ? theme.borderHighlight
+                                  : Colors.transparent,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                drill.icon,
+                                size: 14,
+                                color: isSelected
+                                    ? theme.borderHighlight
+                                    : theme.secondaryInk,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                drill.shortLabel,
+                                style: theme.headingStyle.copyWith(
+                                  fontSize: 11,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: isSelected
+                                      ? theme.borderHighlight
+                                      : theme.secondaryInk,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
               ),
             ),
-          ),
 
-          const SizedBox(width: 12),
+            const SizedBox(width: 8),
+
+            // Right-hand tools & action icons
+            IconButtonTheme(
+              data: const IconButtonThemeData(
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  padding: WidgetStatePropertyAll(EdgeInsets.all(4)),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
 
           // Theme Switcher Menu (Light, Dark, Blueprint)
           PopupMenuButton<AppThemeMode>(
@@ -529,6 +666,63 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
             onPressed: _openSkillProfile,
           ),
 
+          // Draft Gallery [🖼️]
+          IconButton(
+            tooltip: 'Draft Gallery',
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  Icons.collections_rounded,
+                  color: theme.defaultInk,
+                  size: 20,
+                ),
+                ValueListenableBuilder<List<DraftCapture>>(
+                  valueListenable: GalleryService.instance.capturesNotifier,
+                  builder: (ctx, captures, _) {
+                    if (captures.isEmpty) return const SizedBox.shrink();
+                    return Positioned(
+                      top: -4,
+                      right: -4,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: theme.accentCyan,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 14,
+                          minHeight: 14,
+                        ),
+                        child: Text(
+                          '${captures.length}',
+                          style: const TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            onPressed: _openGallery,
+          ),
+
+          // Canvas Snapshot [📸]
+          IconButton(
+            tooltip: 'Capture Canvas Snapshot',
+            icon: Icon(
+              Icons.camera_alt_outlined,
+              color: theme.accentCyan,
+              size: 20,
+            ),
+            onPressed: _captureCanvasSnapshot,
+          ),
+
           // Diagnostics & Crash Logs [🐛]
           IconButton(
             tooltip: 'Diagnostics & Crash Logs',
@@ -555,14 +749,21 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
           ),
 
           // Splash Screen [🎬]
-          if (widget.onReplaySplash != null)
-            IconButton(
-              tooltip: 'Preview Animated Splash',
-              icon: Icon(Icons.movie_filter_outlined, color: theme.secondaryInk, size: 20),
-              onPressed: widget.onReplaySplash,
+            if (widget.onReplaySplash != null)
+              IconButton(
+                tooltip: 'Preview Animated Splash',
+                icon: Icon(
+                  Icons.movie_filter_outlined,
+                  color: theme.secondaryInk,
+                  size: 20,
+                ),
+                onPressed: widget.onReplaySplash,
+              ),
+                ],
+              ),
             ),
-        ],
-      ),
+          ],
+        ),
     );
   }
 

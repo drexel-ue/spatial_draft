@@ -1,17 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../core/models/stroke.dart';
+import 'package:spatial_draft/core/models/stroke.dart';
 
 class GhostingAnalysisResult {
-  final double linearAccuracy;       // 0.0 to 1.0 (1.0 = mathematically perfect line)
-  final double velocityConsistency; // 0.0 to 1.0 (1.0 = constant speed, no hesitation)
-  final double jitterIndex;          // 0.0 to 1.0 (lower is smoother)
-  final double averageDeviationPx;   // in pixels
-  final double maxDeviationPx;       // in pixels
-  final double strokeAngleRadians;
-  final double startErrorPx;
-  final double endErrorPx;
-  final List<Color> heatmapColors;
 
   const GhostingAnalysisResult({
     required this.linearAccuracy,
@@ -24,16 +15,20 @@ class GhostingAnalysisResult {
     required this.endErrorPx,
     required this.heatmapColors,
   });
+  final double linearAccuracy;       // 0.0 to 1.0 (1.0 = mathematically perfect line)
+  final double velocityConsistency; // 0.0 to 1.0 (1.0 = constant speed, no hesitation)
+  final double jitterIndex;          // 0.0 to 1.0 (lower is smoother)
+  final double averageDeviationPx;   // in pixels
+  final double maxDeviationPx;       // in pixels
+  final double strokeAngleRadians;
+  final double startErrorPx;
+  final double endErrorPx;
+  final List<Color> heatmapColors;
 
   int get overallScorePercent => ((linearAccuracy * 0.6 + velocityConsistency * 0.4) * 100).round().clamp(0, 100);
 }
 
 class EllipseAnalysisResult {
-  final double overallAccuracy;     // 0.0 to 1.0
-  final double tangencyScore;       // contact with bounding quad (0.0 to 1.0)
-  final double minorAxisErrorDeg;   // angle difference between drawn and true minor axis
-  final double roundnessSmoothness; // 0.0 to 1.0
-  final bool passed;
 
   const EllipseAnalysisResult({
     required this.overallAccuracy,
@@ -42,6 +37,11 @@ class EllipseAnalysisResult {
     required this.roundnessSmoothness,
     required this.passed,
   });
+  final double overallAccuracy;     // 0.0 to 1.0
+  final double tangencyScore;       // contact with bounding quad (0.0 to 1.0)
+  final double minorAxisErrorDeg;   // angle difference between drawn and true minor axis
+  final double roundnessSmoothness; // 0.0 to 1.0
+  final bool passed;
 
   int get overallScorePercent => (overallAccuracy * 100).round().clamp(0, 100);
 }

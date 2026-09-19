@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import '../core/theme/app_theme.dart';
+import 'package:spatial_draft/core/theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
-  final VoidCallback onFinish;
 
   const SplashScreen({
     super.key,
     required this.onFinish,
   });
+  final VoidCallback onFinish;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();

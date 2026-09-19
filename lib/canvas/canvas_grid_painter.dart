@@ -1,12 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../core/theme/app_theme.dart';
+import 'package:spatial_draft/core/theme/app_theme.dart';
 
 class CanvasGridPainter extends CustomPainter {
-  final AppThemeTokens theme;
-  final GridStyle gridStyle;
-  final GridType gridType;
-  final Matrix4 transform;
 
   CanvasGridPainter({
     required this.theme,
@@ -14,6 +10,10 @@ class CanvasGridPainter extends CustomPainter {
     required this.gridType,
     required this.transform,
   });
+  final AppThemeTokens theme;
+  final GridStyle gridStyle;
+  final GridType gridType;
+  final Matrix4 transform;
 
   @override
   void paint(Canvas canvas, Size size) {

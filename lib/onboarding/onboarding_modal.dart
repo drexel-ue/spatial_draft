@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
-import '../core/theme/app_theme.dart';
+import 'package:spatial_draft/core/theme/app_theme.dart';
 
 class OnboardingSlideData {
-  final String tag;
-  final String title;
-  final String description;
-  final IconData icon;
-  final String takeaway;
 
   const OnboardingSlideData({
     required this.tag,
@@ -15,17 +10,22 @@ class OnboardingSlideData {
     required this.icon,
     required this.takeaway,
   });
+  final String tag;
+  final String title;
+  final String description;
+  final IconData icon;
+  final String takeaway;
 }
 
 class OnboardingModal extends StatefulWidget {
-  final AppThemeTokens theme;
-  final VoidCallback onComplete;
 
   const OnboardingModal({
     super.key,
     required this.theme,
     required this.onComplete,
   });
+  final AppThemeTokens theme;
+  final VoidCallback onComplete;
 
   static void show({
     required BuildContext context,

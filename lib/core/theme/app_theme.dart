@@ -20,28 +20,6 @@ enum GridType {
 }
 
 class AppThemeTokens {
-  final AppThemeMode mode;
-  final Color canvasBackground;
-  final Color surfaceBackground;
-  final Color surfaceGlass;
-  final Color borderSubtle;
-  final Color borderHighlight;
-  
-  final Color defaultInk;
-  final Color secondaryInk;
-  final Color accentCyan;
-  final Color accentAmber;
-  final Color success;
-  final Color warning;
-  final Color danger;
-
-  final Color gridLineMajor;
-  final Color gridLineMinor;
-  final Color reticleColor;
-
-  final TextStyle headingStyle;
-  final TextStyle bodyStyle;
-  final TextStyle monoStyle;
 
   const AppThemeTokens({
     required this.mode,
@@ -64,6 +42,28 @@ class AppThemeTokens {
     required this.bodyStyle,
     required this.monoStyle,
   });
+  final AppThemeMode mode;
+  final Color canvasBackground;
+  final Color surfaceBackground;
+  final Color surfaceGlass;
+  final Color borderSubtle;
+  final Color borderHighlight;
+  
+  final Color defaultInk;
+  final Color secondaryInk;
+  final Color accentCyan;
+  final Color accentAmber;
+  final Color success;
+  final Color warning;
+  final Color danger;
+
+  final Color gridLineMajor;
+  final Color gridLineMinor;
+  final Color reticleColor;
+
+  final TextStyle headingStyle;
+  final TextStyle bodyStyle;
+  final TextStyle monoStyle;
 
   static TextStyle createHeadingStyle({
     Color? color,

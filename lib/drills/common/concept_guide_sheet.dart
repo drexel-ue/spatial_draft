@@ -1,23 +1,19 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
+import 'package:spatial_draft/core/theme/app_theme.dart';
 
 class GuideSectionItem {
-  final String title;
-  final String content;
-  final IconData icon;
 
   const GuideSectionItem({
     required this.title,
     required this.content,
     required this.icon,
   });
+  final String title;
+  final String content;
+  final IconData icon;
 }
 
 class ConceptGuideSheet extends StatelessWidget {
-  final String drillTitle;
-  final String categorySubtitle;
-  final List<GuideSectionItem> sections;
-  final AppThemeTokens theme;
 
   const ConceptGuideSheet({
     super.key,
@@ -26,6 +22,10 @@ class ConceptGuideSheet extends StatelessWidget {
     required this.sections,
     required this.theme,
   });
+  final String drillTitle;
+  final String categorySubtitle;
+  final List<GuideSectionItem> sections;
+  final AppThemeTokens theme;
 
   static void show({
     required BuildContext context,

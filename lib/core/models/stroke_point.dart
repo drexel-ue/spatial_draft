@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 
 class StrokePoint {
-  final Offset position;
-  final double pressure; // 0.0 to 1.0
-  final double tilt;     // radians from perpendicular
-  final int timestampMicros;
 
   const StrokePoint({
     required this.position,
@@ -12,6 +8,10 @@ class StrokePoint {
     this.tilt = 0.0,
     required this.timestampMicros,
   });
+  final Offset position;
+  final double pressure; // 0.0 to 1.0
+  final double tilt;     // radians from perpendicular
+  final int timestampMicros;
 
   StrokePoint copyWith({
     Offset? position,

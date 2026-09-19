@@ -1,11 +1,6 @@
 import 'dart:math' as math;
 
 class AngleSectorStats {
-  final int sectorIndex; // 0 to 15 (each sector is 22.5 degrees)
-  final double centerAngleDegrees;
-  int sampleCount;
-  double totalAccuracy;
-  double totalJitter;
 
   AngleSectorStats({
     required this.sectorIndex,
@@ -13,6 +8,11 @@ class AngleSectorStats {
         sampleCount = 0,
         totalAccuracy = 0.0,
         totalJitter = 0.0;
+  final int sectorIndex; // 0 to 15 (each sector is 22.5 degrees)
+  final double centerAngleDegrees;
+  int sampleCount;
+  double totalAccuracy;
+  double totalJitter;
 
   double get averageAccuracy => sampleCount > 0 ? totalAccuracy / sampleCount : 0.75;
   double get averageJitter => sampleCount > 0 ? totalJitter / sampleCount : 0.20;
@@ -25,6 +25,19 @@ class AngleSectorStats {
 }
 
 class SkillProfile {
+
+  SkillProfile({
+    List<AngleSectorStats>? angleSectors,
+    this.totalStrokesCompleted = 0,
+    this.totalDrillsCompleted = 0,
+    this.overallAccuracy = 0.80,
+    this.overallVelocityConsistency = 0.82,
+    this.averageJitter = 0.15,
+    this.ellipseAccuracy = 0.75,
+    this.isometricAccuracy = 0.78,
+    this.formGestureAccuracy = 0.76,
+  }) : angleSectors = angleSectors ??
+            List.generate(16, (i) => AngleSectorStats(sectorIndex: i));
   // 16 radial angle sectors (0 to 360 degrees)
   final List<AngleSectorStats> angleSectors;
 
@@ -39,19 +52,6 @@ class SkillProfile {
   double ellipseAccuracy;
   double isometricAccuracy;
   double formGestureAccuracy;
-
-  SkillProfile({
-    List<AngleSectorStats>? angleSectors,
-    this.totalStrokesCompleted = 0,
-    this.totalDrillsCompleted = 0,
-    this.overallAccuracy = 0.80,
-    this.overallVelocityConsistency = 0.82,
-    this.averageJitter = 0.15,
-    this.ellipseAccuracy = 0.75,
-    this.isometricAccuracy = 0.78,
-    this.formGestureAccuracy = 0.76,
-  }) : angleSectors = angleSectors ??
-            List.generate(16, (i) => AngleSectorStats(sectorIndex: i));
 
   /// Find the angle sector with the lowest performance or fewest samples
   double getAdaptiveTargetAngle() {

@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'stroke_point.dart';
+import 'package:spatial_draft/core/models/stroke_point.dart';
 
 enum LineWeightType {
   silhouette, // Thick outer contour (1.2mm / ~3.0px)
@@ -39,11 +39,7 @@ extension LineWeightTypeExt on LineWeightType {
   }
 }
 
-class Stroke {
-  final List<StrokePoint> points;
-  final Color color;
-  final LineWeightType lineWeight;
-  final List<Color>? segmentColors; // For velocity/jitter kinematic heatmaps
+class Stroke { // For velocity/jitter kinematic heatmaps
 
   Stroke({
     required List<StrokePoint> points,
@@ -51,6 +47,10 @@ class Stroke {
     this.lineWeight = LineWeightType.crease,
     this.segmentColors,
   }) : points = List.unmodifiable(points);
+  final List<StrokePoint> points;
+  final Color color;
+  final LineWeightType lineWeight;
+  final List<Color>? segmentColors;
 
   bool get isEmpty => points.isEmpty;
   int get length => points.length;

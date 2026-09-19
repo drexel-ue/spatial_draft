@@ -1,19 +1,14 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../../analysis/kinematic_analyzer.dart';
-import '../../canvas/interactive_canvas.dart';
-import '../../core/models/skill_profile.dart';
-import '../../core/models/stroke.dart';
-import '../../core/theme/app_theme.dart';
-import '../common/coachmark_tooltip.dart';
-import '../common/concept_guide_sheet.dart';
+import 'package:spatial_draft/analysis/kinematic_analyzer.dart';
+import 'package:spatial_draft/canvas/interactive_canvas.dart';
+import 'package:spatial_draft/core/models/skill_profile.dart';
+import 'package:spatial_draft/core/models/stroke.dart';
+import 'package:spatial_draft/core/theme/app_theme.dart';
+import 'package:spatial_draft/drills/common/coachmark_tooltip.dart';
+import 'package:spatial_draft/drills/common/concept_guide_sheet.dart';
 
 class EllipseDrill extends StatefulWidget {
-  final AppThemeTokens theme;
-  final GridStyle gridStyle;
-  final GridType gridType;
-  final SkillProfile skillProfile;
-  final VoidCallback onProfileUpdated;
 
   const EllipseDrill({
     super.key,
@@ -23,6 +18,11 @@ class EllipseDrill extends StatefulWidget {
     required this.skillProfile,
     required this.onProfileUpdated,
   });
+  final AppThemeTokens theme;
+  final GridStyle gridStyle;
+  final GridType gridType;
+  final SkillProfile skillProfile;
+  final VoidCallback onProfileUpdated;
 
   @override
   State<EllipseDrill> createState() => _EllipseDrillState();
@@ -274,11 +274,6 @@ class _EllipseDrillState extends State<EllipseDrill> {
 }
 
 class _MetricItem extends StatelessWidget {
-  final String label;
-  final String value;
-  final String detail;
-  final AppThemeTokens theme;
-  final Color? valueColor;
 
   const _MetricItem({
     required this.label,
@@ -287,6 +282,11 @@ class _MetricItem extends StatelessWidget {
     required this.theme,
     this.valueColor,
   });
+  final String label;
+  final String value;
+  final String detail;
+  final AppThemeTokens theme;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
@@ -325,13 +325,13 @@ class _MetricItem extends StatelessWidget {
 }
 
 class _PerspectivePlanePainter extends CustomPainter {
-  final List<Offset> quadCorners;
-  final AppThemeTokens theme;
 
   _PerspectivePlanePainter({
     required this.quadCorners,
     required this.theme,
   });
+  final List<Offset> quadCorners;
+  final AppThemeTokens theme;
 
   @override
   void paint(Canvas canvas, Size size) {

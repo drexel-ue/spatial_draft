@@ -1,24 +1,14 @@
 import 'dart:ui';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import '../core/models/stroke.dart';
-import '../core/models/stroke_point.dart';
-import '../core/theme/app_theme.dart';
-import 'canvas_grid_painter.dart';
-import 'ink_layer_painter.dart';
+import 'package:spatial_draft/canvas/canvas_grid_painter.dart';
+import 'package:spatial_draft/canvas/ink_layer_painter.dart';
+import 'package:spatial_draft/core/models/stroke.dart';
+import 'package:spatial_draft/core/models/stroke_point.dart';
+import 'package:spatial_draft/core/theme/app_theme.dart';
 
 class InteractiveCanvas extends StatefulWidget {
-  final AppThemeTokens theme;
-  final GridStyle gridStyle;
-  final GridType gridType;
-  final LineWeightType currentLineWeight;
-  final Color? overrideInkColor;
-  final Widget? backgroundDrillOverlay;
-  final bool showHeatmap;
-  final bool allowFingerDrawing;
-  final void Function(Stroke stroke)? onStrokeCompleted;
-  final List<Stroke> strokes;
-  final VoidCallback? onClear;
 
   const InteractiveCanvas({
     super.key,
@@ -34,6 +24,17 @@ class InteractiveCanvas extends StatefulWidget {
     required this.strokes,
     this.onClear,
   });
+  final AppThemeTokens theme;
+  final GridStyle gridStyle;
+  final GridType gridType;
+  final LineWeightType currentLineWeight;
+  final Color? overrideInkColor;
+  final Widget? backgroundDrillOverlay;
+  final bool showHeatmap;
+  final bool allowFingerDrawing;
+  final void Function(Stroke stroke)? onStrokeCompleted;
+  final List<Stroke> strokes;
+  final VoidCallback? onClear;
 
   @override
   State<InteractiveCanvas> createState() => _InteractiveCanvasState();

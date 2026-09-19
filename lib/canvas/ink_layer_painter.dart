@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
-import '../core/models/stroke.dart';
-import '../core/theme/app_theme.dart';
+import 'package:spatial_draft/core/models/stroke.dart';
+import 'package:spatial_draft/core/theme/app_theme.dart';
 
 class InkLayerPainter extends CustomPainter {
-  final List<Stroke> completedStrokes;
-  final Stroke? activeStroke;
-  final AppThemeTokens theme;
-  final bool showHeatmap;
 
   InkLayerPainter({
     required this.completedStrokes,
@@ -14,6 +10,10 @@ class InkLayerPainter extends CustomPainter {
     required this.theme,
     this.showHeatmap = false,
   });
+  final List<Stroke> completedStrokes;
+  final Stroke? activeStroke;
+  final AppThemeTokens theme;
+  final bool showHeatmap;
 
   @override
   void paint(Canvas canvas, Size size) {

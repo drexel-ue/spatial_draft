@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../canvas/interactive_canvas.dart';
-import '../../core/models/stroke.dart';
-import '../../core/theme/app_theme.dart';
-import '../common/coachmark_tooltip.dart';
-import '../common/concept_guide_sheet.dart';
+import 'package:spatial_draft/canvas/interactive_canvas.dart';
+import 'package:spatial_draft/core/models/stroke.dart';
+import 'package:spatial_draft/core/theme/app_theme.dart';
+import 'package:spatial_draft/drills/common/coachmark_tooltip.dart';
+import 'package:spatial_draft/drills/common/concept_guide_sheet.dart';
 
 class FreeformSandbox extends StatefulWidget {
-  final AppThemeTokens theme;
-  final GridStyle gridStyle;
-  final GridType gridType;
 
   const FreeformSandbox({
     super.key,
@@ -16,6 +13,9 @@ class FreeformSandbox extends StatefulWidget {
     required this.gridStyle,
     required this.gridType,
   });
+  final AppThemeTokens theme;
+  final GridStyle gridStyle;
+  final GridType gridType;
 
   @override
   State<FreeformSandbox> createState() => _FreeformSandboxState();

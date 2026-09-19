@@ -1,17 +1,17 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../models/skill_profile.dart';
-import '../theme/app_theme.dart';
+import 'package:spatial_draft/core/models/skill_profile.dart';
+import 'package:spatial_draft/core/theme/app_theme.dart';
 
 class SkillProfileDialog extends StatelessWidget {
-  final SkillProfile profile;
-  final AppThemeTokens theme;
 
   const SkillProfileDialog({
     super.key,
     required this.profile,
     required this.theme,
   });
+  final SkillProfile profile;
+  final AppThemeTokens theme;
 
   static void show({
     required BuildContext context,
@@ -231,10 +231,6 @@ class SkillProfileDialog extends StatelessWidget {
 }
 
 class _StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final String subtitle;
-  final AppThemeTokens theme;
 
   const _StatCard({
     required this.title,
@@ -242,6 +238,10 @@ class _StatCard extends StatelessWidget {
     required this.subtitle,
     required this.theme,
   });
+  final String title;
+  final String value;
+  final String subtitle;
+  final AppThemeTokens theme;
 
   @override
   Widget build(BuildContext context) {
@@ -287,13 +287,13 @@ class _StatCard extends StatelessWidget {
 }
 
 class _PolarSkillPainter extends CustomPainter {
-  final SkillProfile profile;
-  final AppThemeTokens theme;
 
   _PolarSkillPainter({
     required this.profile,
     required this.theme,
   });
+  final SkillProfile profile;
+  final AppThemeTokens theme;
 
   @override
   void paint(Canvas canvas, Size size) {
