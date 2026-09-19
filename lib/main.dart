@@ -1,19 +1,52 @@
-import 'package:flutter/material.dart';
-import 'core/models/skill_profile.dart';
-import 'core/theme/app_theme.dart';
-import 'core/widgets/skill_profile_dialog.dart';
-import 'drills/common/concept_guide_sheet.dart';
-import 'drills/form/loomis_head_drill.dart';
-import 'drills/form/pose_mannequin_drill.dart';
-import 'drills/precision/ellipse_drill.dart';
-import 'drills/precision/ghosting_drill.dart';
-import 'drills/precision/isometric_drill.dart';
-import 'drills/sandbox/freeform_sandbox.dart';
-import 'onboarding/onboarding_modal.dart';
-import 'onboarding/splash_screen.dart';
+import 'dart:ui';
 
-void main() {
+import 'package:flutter/material.dart';
+import 'package:spatial_draft/core/models/skill_profile.dart';
+import 'package:spatial_draft/core/theme/app_theme.dart';
+import 'package:spatial_draft/core/widgets/skill_profile_dialog.dart';
+import 'package:spatial_draft/drills/common/concept_guide_sheet.dart';
+import 'package:spatial_draft/drills/form/loomis_head_drill.dart';
+import 'package:spatial_draft/drills/form/pose_mannequin_drill.dart';
+import 'package:spatial_draft/drills/precision/ellipse_drill.dart';
+import 'package:spatial_draft/drills/precision/ghosting_drill.dart';
+import 'package:spatial_draft/drills/precision/isometric_drill.dart';
+import 'package:spatial_draft/drills/sandbox/freeform_sandbox.dart';
+import 'package:spatial_draft/onboarding/onboarding_modal.dart';
+import 'package:spatial_draft/onboarding/splash_screen.dart';
+import 'package:spatial_draft/services/app_log_service.dart';
+import 'package:spatial_draft/views/diagnostics/crash_report_screen.dart';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize logging and crash reporting first
+  await AppLogService.instance.init();
+
+  // Global Flutter framework error hook
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    AppLogService.instance.crash(
+      'FLUTTER_FRAMEWORK',
+      details.exceptionAsString(),
+      stackTrace: details.stack,
+    );
+  };
+
+  // Global uncaught asynchronous errors hook
+  PlatformDispatcher.instance.onError = (error, stack) {
+    AppLogService.instance.crash(
+      'UNCAUGHT_ASYNC',
+      error.toString(),
+      stackTrace: stack,
+    );
+    return true; // prevent application from dying
+  };
+
+  AppLogService.instance.info(
+    'SYSTEM',
+    'SpatialDraft application initialized',
+  );
+
   runApp(const SpatialDraftApp());
 }
 
@@ -136,6 +169,14 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
     SkillProfileDialog.show(
       context: context,
       profile: _skillProfile,
+      theme: theme,
+    );
+  }
+
+  void _openDiagnostics() {
+    final theme = AppThemeTokens.of(widget.themeMode);
+    CrashReportScreen.open(
+      context: context,
       theme: theme,
     );
   }
@@ -486,6 +527,17 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
             tooltip: 'Neuromotor Skill Matrix',
             icon: Icon(Icons.hub_rounded, color: theme.accentCyan, size: 20),
             onPressed: _openSkillProfile,
+          ),
+
+          // Diagnostics & Crash Logs [🐛]
+          IconButton(
+            tooltip: 'Diagnostics & Crash Logs',
+            icon: Icon(
+              Icons.bug_report_outlined,
+              color: theme.warning,
+              size: 20,
+            ),
+            onPressed: _openDiagnostics,
           ),
 
           // Concept Guide [ℹ️]
