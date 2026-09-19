@@ -21,12 +21,12 @@ class CanvasGridPainter extends CustomPainter {
 
     final majorPaint = Paint()
       ..color = theme.gridLineMajor
-      ..strokeWidth = 1.0
+      ..strokeWidth = 1.2
       ..style = PaintingStyle.stroke;
 
     final minorPaint = Paint()
       ..color = theme.gridLineMinor
-      ..strokeWidth = 0.6
+      ..strokeWidth = 0.8
       ..style = PaintingStyle.stroke;
 
     switch (gridType) {
@@ -42,7 +42,12 @@ class CanvasGridPainter extends CustomPainter {
     }
   }
 
-  void _paintSquareGrid(Canvas canvas, Size size, Paint majorPaint, Paint minorPaint) {
+  void _paintSquareGrid(
+    Canvas canvas,
+    Size size,
+    Paint majorPaint,
+    Paint minorPaint,
+  ) {
     const spacing = 32.0;
     const majorInterval = 4;
 
@@ -55,7 +60,7 @@ class CanvasGridPainter extends CustomPainter {
         for (int y = 0; y <= rows; y++) {
           final isMajor = (x % majorInterval == 0) && (y % majorInterval == 0);
           dotPaint.color = isMajor ? theme.gridLineMajor : theme.gridLineMinor;
-          final radius = isMajor ? 1.8 : 1.0;
+          final radius = isMajor ? 2.0 : 1.2;
           canvas.drawCircle(Offset(x * spacing, y * spacing), radius, dotPaint);
         }
       }
@@ -173,7 +178,7 @@ class CanvasGridPainter extends CustomPainter {
   }
 
   void _drawDashedLine(Canvas canvas, Offset p1, Offset p2, Paint paint) {
-    const dashLength = 6.0;
+    const dashLength = 8.0;
     const dashSpace = 6.0;
     final totalDist = (p2 - p1).distance;
     if (totalDist == 0) return;
@@ -183,14 +188,15 @@ class CanvasGridPainter extends CustomPainter {
 
     while (currentDist < totalDist) {
       final start = p1 + unitVector * currentDist;
-      final end = p1 + unitVector * math.min(currentDist + dashLength, totalDist);
+      final end =
+          p1 + unitVector * math.min(currentDist + dashLength, totalDist);
       canvas.drawLine(start, end, paint);
       currentDist += dashLength + dashSpace;
     }
   }
 
   void _drawDottedLine(Canvas canvas, Offset p1, Offset p2, Paint paint) {
-    const dotInterval = 12.0;
+    const dotInterval = 10.0;
     final totalDist = (p2 - p1).distance;
     if (totalDist == 0) return;
 
@@ -200,7 +206,7 @@ class CanvasGridPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     for (double dist = 0; dist < totalDist; dist += dotInterval) {
-      canvas.drawCircle(p1 + unitVector * dist, 1.2, dotPaint);
+      canvas.drawCircle(p1 + unitVector * dist, 1.4, dotPaint);
     }
   }
 
@@ -208,6 +214,7 @@ class CanvasGridPainter extends CustomPainter {
   bool shouldRepaint(covariant CanvasGridPainter oldDelegate) {
     return oldDelegate.gridStyle != gridStyle ||
         oldDelegate.gridType != gridType ||
-        oldDelegate.theme.mode != theme.mode;
+        oldDelegate.theme.mode != theme.mode ||
+        oldDelegate.theme.canvasBackground != theme.canvasBackground;
   }
 }

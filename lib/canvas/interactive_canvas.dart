@@ -172,6 +172,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
             maxScale: 6.0,
             panEnabled: !_isDrawing,
             scaleEnabled: !_isDrawing,
+            constrained: false,
             child: SizedBox(
               width: 4000,
               height: 4000,
