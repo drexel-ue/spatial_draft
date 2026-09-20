@@ -57,6 +57,12 @@ class InteractiveCanvas extends StatefulWidget {
 
 class _InteractiveCanvasState extends State<InteractiveCanvas> {
   late final TransformationController _transformController;
+  final Map<int, Offset> _activePointers = {};
+  final Map<int, PointerDeviceKind> _activePointerKinds = {};
+  Offset _lastFocalPoint = Offset.zero;
+  double _lastSpan = 0.0;
+  bool _isMultiTouchPinching = false;
+
   final ValueNotifier<double> _scaleNotifier = ValueNotifier<double>(1.0);
   final List<StrokePoint> _activePoints = [];
   bool _isDrawing = false;
@@ -121,14 +127,36 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
   }
 
   void _handlePointerDown(PointerDownEvent event) {
-    // Stylus or Mouse primary click or touch if allowed
+    _activePointers[event.pointer] = event.localPosition;
+    _activePointerKinds[event.pointer] = event.kind;
+
     final isStylus = event.kind == PointerDeviceKind.stylus;
     final isMouse = event.kind == PointerDeviceKind.mouse &&
         event.buttons == kPrimaryMouseButton;
     final isAllowedTouch =
         event.kind == PointerDeviceKind.touch && widget.allowFingerDrawing;
 
-    if (isStylus || isMouse || isAllowedTouch) {
+    final touchEntries = _activePointers.entries
+        .where((e) => _activePointerKinds[e.key] == PointerDeviceKind.touch)
+        .map((e) => e.value)
+        .toList();
+
+    if (touchEntries.length >= 2) {
+      _isMultiTouchPinching = true;
+      if (_isDrawing) {
+        _isDrawing = false;
+        _activePointerId = -1;
+        _activePoints.clear();
+        setState(() {});
+      }
+      final p0 = touchEntries[0];
+      final p1 = touchEntries[1];
+      _lastFocalPoint = Offset((p0.dx + p1.dx) / 2.0, (p0.dy + p1.dy) / 2.0);
+      _lastSpan = (p0 - p1).distance;
+      return;
+    }
+
+    if (!_isMultiTouchPinching && (isStylus || isMouse || isAllowedTouch)) {
       if (_isDrawing) return;
 
       final canvasPos = _screenToCanvas(event.localPosition);
@@ -149,6 +177,60 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
   }
 
   void _handlePointerMove(PointerMoveEvent event) {
+    _activePointers[event.pointer] = event.localPosition;
+
+    final touchEntries = _activePointers.entries
+        .where((e) => _activePointerKinds[e.key] == PointerDeviceKind.touch)
+        .map((e) => e.value)
+        .toList();
+
+    if (touchEntries.length >= 2) {
+      if (_isDrawing) {
+        _isDrawing = false;
+        _activePointerId = -1;
+        _activePoints.clear();
+        setState(() {});
+      }
+      _isMultiTouchPinching = true;
+
+      final p0 = touchEntries[0];
+      final p1 = touchEntries[1];
+      final currentFocalPoint =
+          Offset((p0.dx + p1.dx) / 2.0, (p0.dy + p1.dy) / 2.0);
+      final currentSpan = (p0 - p1).distance;
+
+      if (_lastSpan > 5.0 && currentSpan > 5.0) {
+        final factor = currentSpan / _lastSpan;
+        final matrix = _transformController.value.clone();
+        final currentScale = matrix.getMaxScaleOnAxis();
+
+        final minScale = widget.isInfiniteZoom ? 0.001 : 0.25;
+        final maxScale = widget.isInfiniteZoom ? 25000.0 : 6.0;
+
+        final newScale = (currentScale * factor).clamp(minScale, maxScale);
+        final effectiveFactor = newScale / currentScale;
+
+        final tx = matrix.storage[12];
+        final ty = matrix.storage[13];
+
+        final newTx = currentFocalPoint.dx -
+            (_lastFocalPoint.dx - tx) * effectiveFactor;
+        final newTy = currentFocalPoint.dy -
+            (_lastFocalPoint.dy - ty) * effectiveFactor;
+
+        _transformController.value = Matrix4.identity()
+          ..translate(newTx, newTy)
+          ..scale(newScale);
+
+        _lastFocalPoint = currentFocalPoint;
+        _lastSpan = currentSpan;
+      } else {
+        _lastFocalPoint = currentFocalPoint;
+        _lastSpan = currentSpan;
+      }
+      return;
+    }
+
     if (!_isDrawing || event.pointer != _activePointerId) return;
 
     final canvasPos = _screenToCanvas(event.localPosition);
@@ -164,15 +246,72 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
   }
 
   void _handlePointerUp(PointerUpEvent event) {
-    if (!_isDrawing || event.pointer != _activePointerId) return;
-    _isHovering = false;
-    _finalizeStroke();
+    _activePointers.remove(event.pointer);
+    _activePointerKinds.remove(event.pointer);
+
+    final touchCount = _activePointerKinds.values
+        .where((k) => k == PointerDeviceKind.touch)
+        .length;
+
+    if (touchCount < 2) {
+      _lastSpan = 0.0;
+    }
+    if (touchCount == 0) {
+      _isMultiTouchPinching = false;
+    }
+
+    if (_isDrawing && event.pointer == _activePointerId) {
+      _isHovering = false;
+      _finalizeStroke();
+    }
   }
 
   void _handlePointerCancel(PointerCancelEvent event) {
-    if (!_isDrawing || event.pointer != _activePointerId) return;
-    _isHovering = false;
-    _finalizeStroke();
+    _activePointers.remove(event.pointer);
+    _activePointerKinds.remove(event.pointer);
+
+    final touchCount = _activePointerKinds.values
+        .where((k) => k == PointerDeviceKind.touch)
+        .length;
+
+    if (touchCount < 2) {
+      _lastSpan = 0.0;
+    }
+    if (touchCount == 0) {
+      _isMultiTouchPinching = false;
+    }
+
+    if (_isDrawing && event.pointer == _activePointerId) {
+      _isHovering = false;
+      _finalizeStroke();
+    }
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      final delta = event.scrollDelta.dy;
+      if (delta == 0) return;
+      final factor = delta > 0 ? 0.9 : 1.1;
+
+      final matrix = _transformController.value.clone();
+      final currentScale = matrix.getMaxScaleOnAxis();
+      final minScale = widget.isInfiniteZoom ? 0.001 : 0.25;
+      final maxScale = widget.isInfiniteZoom ? 25000.0 : 6.0;
+
+      final newScale = (currentScale * factor).clamp(minScale, maxScale);
+      final effectiveFactor = newScale / currentScale;
+
+      final focal = event.localPosition;
+      final tx = matrix.storage[12];
+      final ty = matrix.storage[13];
+
+      final newTx = focal.dx - (focal.dx - tx) * effectiveFactor;
+      final newTy = focal.dy - (focal.dy - ty) * effectiveFactor;
+
+      _transformController.value = Matrix4.identity()
+        ..translate(newTx, newTy)
+        ..scale(newScale);
+    }
   }
 
   void _finalizeStroke() {
@@ -227,8 +366,8 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
                 : const EdgeInsets.all(3000),
             minScale: widget.isInfiniteZoom ? 0.001 : 0.25,
             maxScale: widget.isInfiniteZoom ? 25000.0 : 6.0,
-            panEnabled: !_isDrawing,
-            scaleEnabled: !_isDrawing,
+            panEnabled: false,
+            scaleEnabled: false,
             constrained: false,
             child: SizedBox(
               width: 4000,
@@ -276,6 +415,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
               onPointerMove: _handlePointerMove,
               onPointerUp: _handlePointerUp,
               onPointerCancel: _handlePointerCancel,
+              onPointerSignal: _handlePointerSignal,
             ),
           ),
 

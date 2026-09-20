@@ -207,14 +207,6 @@ class _FreeformSandboxState extends State<FreeformSandbox>
       _project = _project.copyWith(mode: values[nextIndex]);
     });
     _persistChanges();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Switched to ${_project.mode.label}'),
-        backgroundColor: widget.theme.borderHighlight,
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   void _setZoomScale(double targetScale) {

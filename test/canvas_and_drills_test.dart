@@ -169,6 +169,62 @@ void main() {
 
       expect(completed, isNull);
     });
+
+    testWidgets('cancels stroke and performs pinch zoom on two touches', (tester) async {
+      tester.view.physicalSize = ipadLandscape;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      Stroke? completed;
+      double? lastScale;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: InteractiveCanvas(
+              theme: theme,
+              allowFingerDrawing: true,
+              strokes: const [],
+              onStrokeCompleted: (s) => completed = s,
+              onScaleChanged: (scale) => lastScale = scale,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Start touch 1
+      final g1 = await tester.startGesture(
+        const Offset(400, 300),
+        kind: PointerDeviceKind.touch,
+      );
+      await tester.pump();
+
+      // Start touch 2 (pinch)
+      final g2 = await tester.startGesture(
+        const Offset(600, 300),
+        kind: PointerDeviceKind.touch,
+      );
+      await tester.pump();
+
+      // Spread fingers apart (zoom in)
+      await g1.moveBy(const Offset(-100, 0));
+      await g2.moveBy(const Offset(100, 0));
+      await tester.pump();
+
+      await g1.up();
+      await g2.up();
+      await tester.pump();
+
+      // Multi-touch pinch must NOT record any completed stroke!
+      expect(completed, isNull);
+      // Scale should have increased from 1.0
+      expect(lastScale, isNotNull);
+      expect(lastScale!, greaterThan(1.0));
+    });
   });
 
   group('Drills Interactive Widget Tests', () {
