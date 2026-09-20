@@ -624,19 +624,61 @@ class _FreeformSandboxState extends State<FreeformSandbox>
     );
   }
 
+  String get _coachmarkTitle {
+    switch (_project.mode) {
+      case SandboxMode.mentalCanvas3D:
+        return '3D Mental Canvas Stage';
+      case SandboxMode.infiniteZoom:
+        return 'Infinite Vector Zoom Engine';
+      case SandboxMode.vellum2D:
+        return 'Drafting Sandbox';
+    }
+  }
+
+  String get _coachmarkMessage {
+    switch (_project.mode) {
+      case SandboxMode.mentalCanvas3D:
+        return 'Multi-plane spatial sketching. Use 1 finger to draw, '
+            '2 fingers to orbit camera. Record keyframes and play 3D tours!';
+      case SandboxMode.infiniteZoom:
+        return 'Deep multi-scale canvas (0.001×–25,000×). Pinch or use HUD '
+            'presets. Save scale bookmarks to fly across scales.';
+      case SandboxMode.vellum2D:
+        return 'Free infinite ideation. Tap draft name to rename, '
+            'toggle ink vs cel-shading wash, and export SVG/3D.';
+    }
+  }
+
   void _openGuide() {
     ConceptGuideSheet.show(
       context: context,
-      drillTitle: 'Infinite Drafting Sandbox',
-      categorySubtitle: 'Freeform Engineering & Art Studio',
+      drillTitle: 'Spatial Drafting Studio',
+      categorySubtitle: 'Infinite Zoom & 3D Mental Canvas',
       theme: widget.theme,
       sections: const [
         GuideSectionItem(
-          title: 'Unconstrained Infinite Canvas',
+          title: '3D Mental Canvas & Camera Tours',
           content:
-              'Use two fingers to pan or pinch to zoom. Tap the Recenter '
-              '[ ⌖ ] HUD button anytime to reset zoom to 1:1.',
-          icon: Icons.zoom_out_map_rounded,
+              'Project sketches onto oriented 3D planes. Orbit with two '
+              'fingers or turntable controls. Save camera keyframes in the '
+              'dock to produce cinematic spherical fly-through tours.',
+          icon: Icons.view_in_ar_rounded,
+        ),
+        GuideSectionItem(
+          title: 'Infinite Vector Zoom (25,000×)',
+          content:
+              'Zoom continuously across 7 orders of magnitude without '
+              'pixelation. Author nested sub-assemblies and bookmark scale '
+              'waypoints for logarithmic camera navigation.',
+          icon: Icons.zoom_in_map_rounded,
+        ),
+        GuideSectionItem(
+          title: 'Cel-Shading Wash & Color Palette',
+          content:
+              'Toggle between crisp Ink outlines and translucent Cel Wash '
+              '(35% opacity, 3.2× width) with 8 curated swatches for anime '
+              'and engineering drafting.',
+          icon: Icons.palette_outlined,
         ),
         GuideSectionItem(
           title: 'Direct Draft Naming & Auto-Save',
@@ -646,10 +688,11 @@ class _FreeformSandboxState extends State<FreeformSandbox>
           icon: Icons.edit_note_rounded,
         ),
         GuideSectionItem(
-          title: 'Multi-Format Vector Export',
+          title: 'Interactive 3D Web & SVG Export',
           content:
-              'Tap the share button on the dock to copy resolution-independent '
-              'SVG paths for CAD/Illustrator or native .spatial project files.',
+              'Export standalone self-contained 3D HTML files with interactive '
+              'orbit and storyboard tour playback, or resolution-independent '
+              'vector SVG files.',
           icon: Icons.ios_share_rounded,
         ),
       ],
@@ -742,10 +785,8 @@ class _FreeformSandboxState extends State<FreeformSandbox>
             top: 72,
             left: 24,
             child: CoachmarkTooltip(
-              title: 'Drafting Sandbox',
-              message:
-                  'Free infinite ideation. Tap draft name to rename, '
-                  'pencil to sketch, HUD to recenter.',
+              title: _coachmarkTitle,
+              message: _coachmarkMessage,
               theme: theme,
               onDismiss: () => setState(() => _showTooltip = false),
               onOpenGuide: _openGuide,

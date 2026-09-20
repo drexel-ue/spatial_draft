@@ -64,17 +64,45 @@ class _OnboardingModalState extends State<OnboardingModal> {
       tag: 'THE GHOSTING METHOD 02',
       title: 'Practice Before Contact',
       description:
-          'Before touching down on glass, hover your pencil tip 2–3 times between the reticles. Build the trajectory in muscle memory, then execute the line in one smooth, confident stroke.',
+          'Before touching down on glass, hover your pencil tip 2–3 times '
+          'between the reticles. Build the trajectory in muscle memory, '
+          'then execute the line in one smooth, confident stroke.',
       icon: Icons.gesture_rounded,
       takeaway: 'Key rule: Never stop mid-stroke to course-correct.',
     ),
     OnboardingSlideData(
-      tag: 'ADAPTIVE NEUROMOTOR ENGINE 03',
-      title: 'Interconnected Skill Loop',
+      tag: 'INFINITE VECTOR ZOOM 03',
+      title: 'Micro to Macro Multiscale',
       description:
-          'SpatialDraft calculates your speed consistency and wobble acceleration (d²s/dt²). Your radial angle proficiency directly shapes the procedural exercises in subsequent 3D and organic drills.',
+          'Scale from 0.001× to 25,000× without pixelation. Draft '
+          'sub-millimeter components inside vast assemblies, '
+          'bookmarking scale waypoints to fly smoothly across scales.',
+      icon: Icons.zoom_in_map_rounded,
+      takeaway:
+          'Key rule: No canvas limits; bookmark scale milestones as you draft.',
+    ),
+    OnboardingSlideData(
+      tag: '3D MENTAL CANVAS 04',
+      title: 'Spatial Multi-Plane Inception',
+      description:
+          'Sketch 2D views directly on 3D spatial planes. Apply translucent '
+          'cel-shading washes, record camera vantage keyframes, and '
+          'trigger automated cinematic tours.',
+      icon: Icons.view_in_ar_rounded,
+      takeaway:
+          'Key rule: Orbit around character forms to create true parallax '
+          'depth.',
+    ),
+    OnboardingSlideData(
+      tag: 'ADAPTIVE NEUROMOTOR ENGINE 05',
+      title: 'Interconnected Skill Loop & Vault',
+      description:
+          'Velocity derivatives (d²s/dt²) score your line stability, '
+          'training your weakest angles. Save projects continuously to '
+          'your Vault and export vector SVGs or standalone 3D Web HTML.',
       icon: Icons.auto_graph_rounded,
-      takeaway: 'Key rule: Your weaknesses become your customized training path.',
+      takeaway:
+          'Key rule: Your weaknesses become your customized training path.',
     ),
   ];
 
