@@ -106,7 +106,6 @@ void main() {
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
       const size = Size(4000, 4000);
-      const viewportSize = Size(1133, 744);
 
       final scales = [0.01, 0.5, 1.0, 10.0, 100.0, 1000.0];
       for (final s in scales) {
@@ -116,7 +115,6 @@ void main() {
           gridType: GridType.squareMetric,
           theme: theme,
           transform: transform,
-          viewportSize: viewportSize,
         );
         painter.paint(canvas, size);
 
@@ -125,7 +123,6 @@ void main() {
           gridType: GridType.squareMetric,
           theme: theme,
           transform: Matrix4.identity()..scale(s * 2, s * 2),
-          viewportSize: viewportSize,
         );
         expect(painter.shouldRepaint(nextPainter), isTrue);
       }

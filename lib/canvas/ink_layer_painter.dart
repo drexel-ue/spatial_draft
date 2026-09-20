@@ -9,15 +9,19 @@ class InkLayerPainter extends CustomPainter {
     this.activeStroke,
     required this.theme,
     this.showHeatmap = false,
-    this.currentScale = 1.0,
+    Matrix4? transform,
+    double? currentScale,
     super.repaint,
-  });
+  }) : transform = transform ??
+            (currentScale != null
+                ? (Matrix4.identity()..scale(currentScale, currentScale))
+                : Matrix4.identity());
 
   final List<Stroke> completedStrokes;
   final Stroke? activeStroke;
   final AppThemeTokens theme;
   final bool showHeatmap;
-  final double currentScale;
+  final Matrix4 transform;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -35,20 +39,28 @@ class InkLayerPainter extends CustomPainter {
   void _paintStroke(Canvas canvas, Stroke stroke) {
     if (stroke.points.isEmpty) return;
 
+    final scale = transform.getMaxScaleOnAxis().clamp(0.0001, 100000.0);
     final authorScale = stroke.authoringScale > 0.0
         ? stroke.authoringScale
         : 1.0;
-    final rawBaseWidth = (stroke.lineWeight.baseWidth *
-            stroke.brushStyle.widthMultiplier) /
-        authorScale;
-
-    // Macro stroke dampening: if zoomed in significantly beyond authoring
-    // scale, prevent strokes from ballooning into screen-blocking bars.
-    final zoomRatio = currentScale / authorScale;
+    final zoomRatio = scale / authorScale;
     final scaleFactor = zoomRatio > 6.0
         ? (6.0 + 2.0 * math.log(1.0 + zoomRatio - 6.0)) / zoomRatio
         : 1.0;
-    final baseWidth = rawBaseWidth * scaleFactor;
+
+    double avgPressure = 0.5;
+    double totalPressure = 0.0;
+    for (final pt in stroke.points) {
+      totalPressure += pt.pressure;
+    }
+    avgPressure = (totalPressure / stroke.points.length).clamp(0.1, 1.0);
+
+    final baseScreenWidth = stroke.lineWeight.baseWidth *
+        stroke.brushStyle.widthMultiplier *
+        zoomRatio *
+        scaleFactor;
+    final screenWidth =
+        (baseScreenWidth * (0.6 + avgPressure * 0.8)).clamp(0.2, 300.0);
 
     final strokeColor = stroke.color.withOpacity(
       (stroke.color.opacity * stroke.brushStyle.opacityMultiplier).clamp(
@@ -61,82 +73,121 @@ class InkLayerPainter extends CustomPainter {
     if (showHeatmap &&
         stroke.segmentColors != null &&
         stroke.segmentColors!.length >= stroke.points.length) {
-      _paintHeatmappedStroke(canvas, stroke);
+      _paintHeatmappedStroke(canvas, stroke, screenWidth);
       return;
+    }
+
+    // Convert points to screen coordinates via 64-bit CPU transform
+    final screenPoints = <Offset>[];
+    for (final pt in stroke.points) {
+      screenPoints.add(MatrixUtils.transformPoint(transform, pt.position));
+    }
+
+    if (screenPoints.length == 1) {
+      final p0 = screenPoints.first;
+      final dotPaint = Paint()
+        ..color = strokeColor
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(p0, screenWidth / 2.0, dotPaint);
+      return;
+    }
+
+    // Continuous midpoint quadratic Bezier path in screen space
+    final path = Path();
+    path.moveTo(screenPoints[0].dx, screenPoints[0].dy);
+
+    if (screenPoints.length == 2) {
+      path.lineTo(screenPoints[1].dx, screenPoints[1].dy);
+    } else {
+      for (int i = 0; i < screenPoints.length - 1; i++) {
+        final p0 = screenPoints[i];
+        final p1 = screenPoints[i + 1];
+        final mid = Offset((p0.dx + p1.dx) / 2.0, (p0.dy + p1.dy) / 2.0);
+        if (i == 0) {
+          path.lineTo(mid.dx, mid.dy);
+        } else {
+          path.quadraticBezierTo(p0.dx, p0.dy, mid.dx, mid.dy);
+        }
+      }
+      path.lineTo(screenPoints.last.dx, screenPoints.last.dy);
     }
 
     // If dashed (hidden geometry line)
     if (stroke.lineWeight.isDashed) {
+      final dashed = _toDashedPath(path, dashLength: 8.0, dashSpace: 5.0);
       final paint = Paint()
         ..color = strokeColor
-        ..strokeWidth = baseWidth
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-      canvas.drawPath(
-        stroke.toDashedPath(scaleWithAuthoring: true),
-        paint,
-      );
+        ..strokeWidth = screenWidth
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
+      canvas.drawPath(dashed, paint);
       return;
     }
 
-    // High performance smooth path rendering
-    if (stroke.points.length < 3) {
-      final paint = Paint()
-        ..color = strokeColor
-        ..strokeWidth = baseWidth
-        ..strokeCap = StrokeCap.round
-        ..style = PaintingStyle.stroke;
-      canvas.drawPath(
-        stroke.toSmoothedPath(scaleWithAuthoring: true),
-        paint,
-      );
-      return;
-    }
+    final paint = Paint()
+      ..color = strokeColor
+      ..strokeWidth = screenWidth
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
 
-    // Draw variable-width segments based on stylus pressure
-    for (int i = 0; i < stroke.points.length - 1; i++) {
-      final p1 = stroke.points[i];
-      final p2 = stroke.points[i + 1];
-
-      // Scale width between 0.6x and 1.4x based on pressure
-      final avgPressure = (p1.pressure + p2.pressure) / 2.0;
-      final dynamicWidth = baseWidth * (0.6 + avgPressure * 0.8);
-
-      final paint = Paint()
-        ..color = strokeColor
-        ..strokeWidth = dynamicWidth
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..style = PaintingStyle.stroke;
-
-      canvas.drawLine(p1.position, p2.position, paint);
-    }
+    canvas.drawPath(path, paint);
   }
 
-  void _paintHeatmappedStroke(Canvas canvas, Stroke stroke) {
-    final colors = stroke.segmentColors!;
-    final authorScale = stroke.authoringScale > 0.0
-        ? stroke.authoringScale
-        : 1.0;
-    final strokeWidth = (stroke.lineWeight.baseWidth * 1.2) / authorScale;
+  Path _toDashedPath(
+    Path source, {
+    double dashLength = 8.0,
+    double dashSpace = 5.0,
+  }) {
+    final dashed = Path();
+    for (final metric in source.computeMetrics()) {
+      double distance = 0.0;
+      bool draw = true;
+      while (distance < metric.length) {
+        final length = draw ? dashLength : dashSpace;
+        if (draw) {
+          dashed.addPath(
+            metric.extractPath(
+              distance,
+              (distance + length).clamp(0.0, metric.length),
+            ),
+            Offset.zero,
+          );
+        }
+        distance += length;
+        draw = !draw;
+      }
+    }
+    return dashed;
+  }
 
+  void _paintHeatmappedStroke(
+    Canvas canvas,
+    Stroke stroke,
+    double screenWidth,
+  ) {
+    final colors = stroke.segmentColors!;
     for (int i = 0; i < stroke.points.length - 1; i++) {
-      final p1 = stroke.points[i];
-      final p2 = stroke.points[i + 1];
+      final p1 =
+          MatrixUtils.transformPoint(transform, stroke.points[i].position);
+      final p2 = MatrixUtils.transformPoint(
+        transform,
+        stroke.points[i + 1].position,
+      );
       final segmentColor = colors[i];
 
       final paint = Paint()
         ..color = segmentColor
-        ..strokeWidth = strokeWidth
+        ..strokeWidth = screenWidth * 1.2
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke;
 
-      canvas.drawLine(p1.position, p2.position, paint);
+      canvas.drawLine(p1, p2, paint);
     }
   }
 
   @override
   bool shouldRepaint(covariant InkLayerPainter oldDelegate) {
-    return true; // Repaint during live drawing
+    return true; // Repaint during live drawing and camera motion
   }
 }

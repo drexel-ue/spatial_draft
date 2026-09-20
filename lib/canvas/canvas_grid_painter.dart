@@ -8,7 +8,6 @@ class CanvasGridPainter extends CustomPainter {
     required this.gridStyle,
     required this.gridType,
     required this.transform,
-    this.viewportSize,
     super.repaint,
   });
 
@@ -16,95 +15,35 @@ class CanvasGridPainter extends CustomPainter {
   final GridStyle gridStyle;
   final GridType gridType;
   final Matrix4 transform;
-  final Size? viewportSize;
 
-  double get _scale => transform.getMaxScaleOnAxis().clamp(0.0001, 50000.0);
+  double get _scale => transform.getMaxScaleOnAxis().clamp(0.0001, 100000.0);
+  double get _tx => transform.storage[12];
+  double get _ty => transform.storage[13];
 
   @override
   void paint(Canvas canvas, Size size) {
     if (gridStyle == GridStyle.none) return;
 
-    final scale = _scale;
     final majorPaint = Paint()
       ..color = theme.gridLineMajor
-      ..strokeWidth = 1.2 / scale
+      ..strokeWidth = 1.2
       ..style = PaintingStyle.stroke;
 
     final minorPaint = Paint()
       ..color = theme.gridLineMinor
-      ..strokeWidth = 0.8 / scale
+      ..strokeWidth = 0.8
       ..style = PaintingStyle.stroke;
-
-    final visibleRect = _computeVisibleRect(size);
 
     switch (gridType) {
       case GridType.squareMetric:
-        _paintSquareGrid(
-          canvas,
-          size,
-          majorPaint,
-          minorPaint,
-          scale,
-          visibleRect,
-        );
+        _paintSquareGrid(canvas, size, majorPaint, minorPaint);
         break;
       case GridType.isometric:
-        _paintIsometricGrid(
-          canvas,
-          size,
-          majorPaint,
-          minorPaint,
-          scale,
-          visibleRect,
-        );
+        _paintIsometricGrid(canvas, size, majorPaint, minorPaint);
         break;
       case GridType.perspective:
-        _paintPerspectiveGrid(
-          canvas,
-          size,
-          majorPaint,
-          minorPaint,
-          scale,
-          visibleRect,
-        );
+        _paintPerspectiveGrid(canvas, size, majorPaint, minorPaint);
         break;
-    }
-  }
-
-  Rect _computeVisibleRect(Size size) {
-    if (viewportSize == null ||
-        viewportSize!.width <= 0 ||
-        viewportSize!.height <= 0) {
-      return Offset.zero & size;
-    }
-    try {
-      final inverted = Matrix4.inverted(transform);
-      final p0 = MatrixUtils.transformPoint(inverted, Offset.zero);
-      final p1 = MatrixUtils.transformPoint(
-        inverted,
-        Offset(viewportSize!.width, 0),
-      );
-      final p2 = MatrixUtils.transformPoint(
-        inverted,
-        Offset(0, viewportSize!.height),
-      );
-      final p3 = MatrixUtils.transformPoint(
-        inverted,
-        Offset(viewportSize!.width, viewportSize!.height),
-      );
-      final left = math.min(math.min(p0.dx, p1.dx), math.min(p2.dx, p3.dx));
-      final right = math.max(math.max(p0.dx, p1.dx), math.max(p2.dx, p3.dx));
-      final top = math.min(math.min(p0.dy, p1.dy), math.min(p2.dy, p3.dy));
-      final bottom = math.max(math.max(p0.dy, p1.dy), math.max(p2.dy, p3.dy));
-
-      return Rect.fromLTRB(
-        math.max(0.0, left),
-        math.max(0.0, top),
-        math.min(size.width, right),
-        math.min(size.height, bottom),
-      );
-    } catch (_) {
-      return Offset.zero & size;
     }
   }
 
@@ -113,55 +52,67 @@ class CanvasGridPainter extends CustomPainter {
     Size size,
     Paint majorPaint,
     Paint minorPaint,
-    double scale,
-    Rect visibleRect,
   ) {
-    // Octave subdivision keeping screen cell spacing between 24px and 64px
+    final scale = _scale;
+    final tx = _tx;
+    final ty = _ty;
+
+    // Octave subdivision: screen spacing is always between 32px and 64px
     final octave = (math.log(scale) / math.ln2).floor();
-    final spacing = 32.0 / math.pow(2.0, octave);
+    final worldSpacing = 32.0 / math.pow(2.0, octave);
+    final screenSpacing = worldSpacing * scale;
     const majorInterval = 4;
 
-    final startCol = (visibleRect.left / spacing).floor();
-    final endCol = (visibleRect.right / spacing).ceil();
-    final startRow = (visibleRect.top / spacing).floor();
-    final endRow = (visibleRect.bottom / spacing).ceil();
+    // Screen offsets derived modulo screenSpacing
+    final startX = ((tx % screenSpacing) + screenSpacing) % screenSpacing;
+    final startY = ((ty % screenSpacing) + screenSpacing) % screenSpacing;
 
     if (gridStyle == GridStyle.dotted) {
       final dotPaint = Paint()..style = PaintingStyle.fill;
-      for (int x = startCol; x <= endCol; x++) {
-        for (int y = startRow; y <= endRow; y++) {
-          final isMajor = (x % majorInterval == 0) && (y % majorInterval == 0);
-          dotPaint.color = isMajor ? theme.gridLineMajor : theme.gridLineMinor;
-          final radius = (isMajor ? 2.0 : 1.2) / scale;
-          canvas.drawCircle(Offset(x * spacing, y * spacing), radius, dotPaint);
+      for (double x = startX; x <= size.width; x += screenSpacing) {
+        final worldX = (x - tx) / scale;
+        final kx = (worldX / worldSpacing).round();
+        for (double y = startY; y <= size.height; y += screenSpacing) {
+          final worldY = (y - ty) / scale;
+          final ky = (worldY / worldSpacing).round();
+          final isMajor = (kx % majorInterval == 0) &&
+              (ky % majorInterval == 0);
+          dotPaint.color =
+              isMajor ? theme.gridLineMajor : theme.gridLineMinor;
+          final radius = isMajor ? 2.0 : 1.2;
+          canvas.drawCircle(Offset(x, y), radius, dotPaint);
         }
       }
       return;
     }
 
-    // Vertical lines
-    for (int x = startCol; x <= endCol; x++) {
-      final isMajor = x % majorInterval == 0;
+    // Vertical grid lines in screen space
+    for (double x = startX; x <= size.width; x += screenSpacing) {
+      final worldX = (x - tx) / scale;
+      final k = (worldX / worldSpacing).round();
+      final isMajor = k % majorInterval == 0;
       final paint = isMajor ? majorPaint : minorPaint;
-      final p1 = Offset(x * spacing, visibleRect.top);
-      final p2 = Offset(x * spacing, visibleRect.bottom);
+      final p1 = Offset(x, 0);
+      final p2 = Offset(x, size.height);
 
       if (gridStyle == GridStyle.dashed) {
-        _drawDashedLine(canvas, p1, p2, paint, scale);
+        _drawDashedLine(canvas, p1, p2, paint);
       } else {
         canvas.drawLine(p1, p2, paint);
       }
     }
 
-    // Horizontal lines
-    for (int y = startRow; y <= endRow; y++) {
-      final isMajor = y % majorInterval == 0;
+    // Horizontal grid lines in screen space
+    for (double y = startY; y <= size.height; y += screenSpacing) {
+      final worldY = (y - ty) / scale;
+      final k = (worldY / worldSpacing).round();
+      final isMajor = k % majorInterval == 0;
       final paint = isMajor ? majorPaint : minorPaint;
-      final p1 = Offset(visibleRect.left, y * spacing);
-      final p2 = Offset(visibleRect.right, y * spacing);
+      final p1 = Offset(0, y);
+      final p2 = Offset(size.width, y);
 
       if (gridStyle == GridStyle.dashed) {
-        _drawDashedLine(canvas, p1, p2, paint, scale);
+        _drawDashedLine(canvas, p1, p2, paint);
       } else {
         canvas.drawLine(p1, p2, paint);
       }
@@ -173,72 +124,76 @@ class CanvasGridPainter extends CustomPainter {
     Size size,
     Paint majorPaint,
     Paint minorPaint,
-    double scale,
-    Rect visibleRect,
   ) {
+    final scale = _scale;
+    final tx = _tx;
+    final ty = _ty;
+
     final octave = (math.log(scale) / math.ln2).floor();
-    final spacing = 40.0 / math.pow(2.0, octave);
+    final worldSpacing = 40.0 / math.pow(2.0, octave);
+    final screenSpacing = worldSpacing * scale;
     const angle = 30.0 * math.pi / 180.0;
     final tanAngle = math.tan(angle);
 
-    // 1. Vertical lines
-    final stepX = spacing * 1.5;
-    final startX = (visibleRect.left / stepX).floor() * stepX;
-    for (double x = startX; x <= visibleRect.right; x += stepX) {
-      final p1 = Offset(x, visibleRect.top);
-      final p2 = Offset(x, visibleRect.bottom);
+    // 1. Vertical lines in screen space
+    final stepX = screenSpacing * 1.5;
+    final startX = ((tx % stepX) + stepX) % stepX;
+    for (double x = startX; x <= size.width; x += stepX) {
+      final p1 = Offset(x, 0);
+      final p2 = Offset(x, size.height);
       if (gridStyle == GridStyle.dashed) {
-        _drawDashedLine(canvas, p1, p2, minorPaint, scale);
+        _drawDashedLine(canvas, p1, p2, minorPaint);
       } else if (gridStyle == GridStyle.dotted) {
-        _drawDottedLine(canvas, p1, p2, minorPaint, scale);
+        _drawDottedLine(canvas, p1, p2, minorPaint);
       } else {
         canvas.drawLine(p1, p2, minorPaint);
       }
     }
 
-    // 2. 30-degree upward lines
-    final minDiag =
-        (visibleRect.top - visibleRect.right * tanAngle) / spacing;
-    final maxDiag =
-        (visibleRect.bottom - visibleRect.left * tanAngle) / spacing;
-    for (int i = minDiag.floor(); i <= maxDiag.ceil(); i++) {
-      final yIntercept = i * spacing;
-      final p1 = Offset(
-        visibleRect.left,
-        yIntercept + visibleRect.left * tanAngle,
-      );
-      final p2 = Offset(
-        visibleRect.right,
-        yIntercept + visibleRect.right * tanAngle,
-      );
+    // 2. 30-degree upward diagonal lines
+    final interceptStep = screenSpacing;
+    final c0Up = ty - tanAngle * tx;
+    final startCUp =
+        ((c0Up % interceptStep) + interceptStep) % interceptStep;
+    final minCUp = -tanAngle * size.width;
+    final maxCUp = size.height;
+
+    final countUpStart = ((minCUp - startCUp) / interceptStep).floor();
+    final countUpEnd = ((maxCUp - startCUp) / interceptStep).ceil();
+
+    for (int i = countUpStart; i <= countUpEnd; i++) {
+      final c = startCUp + i * interceptStep;
+      final p1 = Offset(0, c);
+      final p2 = Offset(size.width, c + size.width * tanAngle);
       if (gridStyle == GridStyle.dashed) {
-        _drawDashedLine(canvas, p1, p2, minorPaint, scale);
+        _drawDashedLine(canvas, p1, p2, minorPaint);
       } else if (gridStyle == GridStyle.dotted) {
-        _drawDottedLine(canvas, p1, p2, minorPaint, scale);
+        _drawDottedLine(canvas, p1, p2, minorPaint);
       } else {
         canvas.drawLine(p1, p2, minorPaint);
       }
     }
 
-    // 3. 30-degree downward lines
-    final minDown =
-        (visibleRect.top + visibleRect.left * tanAngle) / spacing;
-    final maxDown =
-        (visibleRect.bottom + visibleRect.right * tanAngle) / spacing;
-    for (int i = minDown.floor(); i <= maxDown.ceil(); i++) {
-      final yIntercept = i * spacing;
-      final p1 = Offset(
-        visibleRect.left,
-        yIntercept - visibleRect.left * tanAngle,
-      );
-      final p2 = Offset(
-        visibleRect.right,
-        yIntercept - visibleRect.right * tanAngle,
-      );
+    // 3. 30-degree downward diagonal lines
+    final c0Down = ty + tanAngle * tx;
+    final startCDown =
+        ((c0Down % interceptStep) + interceptStep) % interceptStep;
+    const minCDown = 0.0;
+    final maxCDown = size.height + tanAngle * size.width;
+
+    final countDownStart =
+        ((minCDown - startCDown) / interceptStep).floor();
+    final countDownEnd =
+        ((maxCDown - startCDown) / interceptStep).ceil();
+
+    for (int i = countDownStart; i <= countDownEnd; i++) {
+      final c = startCDown + i * interceptStep;
+      final p1 = Offset(0, c);
+      final p2 = Offset(size.width, c - size.width * tanAngle);
       if (gridStyle == GridStyle.dashed) {
-        _drawDashedLine(canvas, p1, p2, minorPaint, scale);
+        _drawDashedLine(canvas, p1, p2, minorPaint);
       } else if (gridStyle == GridStyle.dotted) {
-        _drawDottedLine(canvas, p1, p2, minorPaint, scale);
+        _drawDottedLine(canvas, p1, p2, minorPaint);
       } else {
         canvas.drawLine(p1, p2, minorPaint);
       }
@@ -250,16 +205,19 @@ class CanvasGridPainter extends CustomPainter {
     Size size,
     Paint majorPaint,
     Paint minorPaint,
-    double scale,
-    Rect visibleRect,
   ) {
-    final horizonY = size.height * 0.42;
-    final vp = Offset(size.width * 0.5, horizonY);
+    final scale = _scale;
+    final tx = _tx;
+    final ty = _ty;
+
+    final horizonY = ty + 4000.0 * 0.42 * scale;
+    final vpX = tx + 4000.0 * 0.5 * scale;
+    final vp = Offset(vpX, horizonY);
 
     // Horizon line
     canvas.drawLine(
-      Offset(visibleRect.left, horizonY),
-      Offset(visibleRect.right, horizonY),
+      Offset(0, horizonY),
+      Offset(size.width, horizonY),
       majorPaint,
     );
 
@@ -269,9 +227,9 @@ class CanvasGridPainter extends CustomPainter {
       final targetX = (size.width / rayCount) * i;
       final targetBottom = Offset(targetX, size.height);
       if (gridStyle == GridStyle.dashed) {
-        _drawDashedLine(canvas, vp, targetBottom, minorPaint, scale);
+        _drawDashedLine(canvas, vp, targetBottom, minorPaint);
       } else if (gridStyle == GridStyle.dotted) {
-        _drawDottedLine(canvas, vp, targetBottom, minorPaint, scale);
+        _drawDottedLine(canvas, vp, targetBottom, minorPaint);
       } else {
         canvas.drawLine(vp, targetBottom, minorPaint);
       }
@@ -281,10 +239,10 @@ class CanvasGridPainter extends CustomPainter {
     for (double depth = 1.0; depth < 10.0; depth += 1.0) {
       final y =
           horizonY + (size.height - horizonY) * (depth / 10.0) * (depth / 10.0);
-      final p1 = Offset(visibleRect.left, y);
-      final p2 = Offset(visibleRect.right, y);
+      final p1 = Offset(0, y);
+      final p2 = Offset(size.width, y);
       if (gridStyle == GridStyle.dashed) {
-        _drawDashedLine(canvas, p1, p2, minorPaint, scale);
+        _drawDashedLine(canvas, p1, p2, minorPaint);
       } else {
         canvas.drawLine(p1, p2, minorPaint);
       }
@@ -296,10 +254,9 @@ class CanvasGridPainter extends CustomPainter {
     Offset p1,
     Offset p2,
     Paint paint,
-    double scale,
   ) {
-    final dashLength = 8.0 / scale;
-    final dashSpace = 6.0 / scale;
+    const dashLength = 8.0;
+    const dashSpace = 6.0;
     final totalDist = (p2 - p1).distance;
     if (totalDist == 0) return;
 
@@ -320,9 +277,8 @@ class CanvasGridPainter extends CustomPainter {
     Offset p1,
     Offset p2,
     Paint paint,
-    double scale,
   ) {
-    final dotInterval = 10.0 / scale;
+    const dotInterval = 10.0;
     final totalDist = (p2 - p1).distance;
     if (totalDist == 0) return;
 
@@ -332,7 +288,7 @@ class CanvasGridPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     for (double dist = 0; dist < totalDist; dist += dotInterval) {
-      canvas.drawCircle(p1 + unitVector * dist, 1.4 / scale, dotPaint);
+      canvas.drawCircle(p1 + unitVector * dist, 1.4, dotPaint);
     }
   }
 
@@ -342,7 +298,6 @@ class CanvasGridPainter extends CustomPainter {
         oldDelegate.gridType != gridType ||
         oldDelegate.theme.mode != theme.mode ||
         oldDelegate.theme.canvasBackground != theme.canvasBackground ||
-        oldDelegate.transform != transform ||
-        oldDelegate.viewportSize != viewportSize;
+        oldDelegate.transform != transform;
   }
 }
