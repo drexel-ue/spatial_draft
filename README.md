@@ -183,7 +183,7 @@ From the fitted conic coefficients $(a, b, c, d, e, f)$, the engine extracts:
 - **Center**: $(x_c, y_c)$
 - **Major Axis Semi-Diameter**: $a_{\text{semi}}$
 - **Minor Axis Semi-Diameter**: $b_{\text{semi}}$
-- **Orientation Angle**: $\theta = \frac{1}{2} \operatorname{atan2}(b, a - c)$
+- **Orientation Angle**: $\theta = \frac{1}{2} \text{atan2}(b, a - c)$
 
 The **Minor Axis Error** is calculated against the expected 3D normal axle $\theta_{\text{axle}}$:
 
@@ -195,13 +195,13 @@ $$\Delta \theta_{\text{minor}} = \min(|\theta_{\text{minor}} - \theta_{\text{axl
 
 The human arm draws at different degrees of natural freedom depending on the angle relative to the torso. SpatialDraft discretizes the 2D plane into **16 radial angular sectors** ($22.5^\circ$ bins):
 
-$$\text{Sector}(P) = \left\lfloor \frac{(\operatorname{atan2}(\Delta y, \Delta x) \pmod{2\pi})}{2\pi / 16} \right\rfloor$$
+$$\text{Sector}(P) = \left\lfloor \frac{(\text{atan2}(\Delta y, \Delta x) \pmod{2\pi})}{2\pi / 16} \right\rfloor$$
 
 Each sector accumulates moving-window accuracy, velocity consistency, and jitter metrics. To close the training loop, future drill generation angles $\theta_{\text{target}}$ are selected inversely proportional to sector proficiency:
 
 $$w_k = 1.0 - \left( \alpha \cdot \text{Accuracy}_k + \beta \cdot \text{Consistency}_k - \gamma \cdot \text{Jitter}_k \right)$$
 
-$$\theta_{\text{target}} = \operatorname{SampleSector}(P(k) \propto w_k) \times 22.5^\circ$$
+$$\theta_{\text{target}} = \text{SampleSector}(P(k) \propto w_k) \times 22.5^\circ$$
 
 ---
 
@@ -211,9 +211,9 @@ When transitioning between 3D camera keyframes across the $[-\pi, \pi]$ boundary
 
 $$\Delta\theta = ((\theta_{\text{target}} - \theta_{\text{start}} + \pi) \pmod{2\pi}) - \pi$$
 
-$$\theta(t) = \theta_{\text{start}} + \Delta\theta \cdot \operatorname{EaseInOutCubic}(t)$$
+$$\theta(t) = \theta_{\text{start}} + \Delta\theta \cdot \text{EaseInOutCubic}(t)$$
 
-Where $\operatorname{EaseInOutCubic}(t) = \begin{cases} 4t^3 & \text{if } t < 0.5 \\ 1 - \frac{(-2t + 2)^3}{2} & \text{if } t \ge 0.5 \end{cases}$.
+Where $\text{EaseInOutCubic}(t) = \begin{cases} 4t^3 & \text{if } t < 0.5 \\ 1 - \frac{(-2t + 2)^3}{2} & \text{if } t \ge 0.5 \end{cases}$.
 
 ---
 
