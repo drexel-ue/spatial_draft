@@ -21,10 +21,14 @@ class InteractiveCanvas extends StatefulWidget {
     this.showHeatmap = false,
     this.allowFingerDrawing = true,
     this.showRecenterHud = true,
+    this.isInfiniteZoom = false,
+    this.activePlaneId = 'plane_primary',
+    this.transformationController,
     this.onStrokeCompleted,
     required this.strokes,
     this.onClear,
     this.onTransformChanged,
+    this.onScaleChanged,
   });
   final AppThemeTokens theme;
   final GridStyle gridStyle;
@@ -35,10 +39,14 @@ class InteractiveCanvas extends StatefulWidget {
   final bool showHeatmap;
   final bool allowFingerDrawing;
   final bool showRecenterHud;
+  final bool isInfiniteZoom;
+  final String activePlaneId;
+  final TransformationController? transformationController;
   final void Function(Stroke stroke)? onStrokeCompleted;
   final List<Stroke> strokes;
   final VoidCallback? onClear;
   final void Function(Matrix4 transform)? onTransformChanged;
+  final ValueChanged<double>? onScaleChanged;
 
   @override
   State<InteractiveCanvas> createState() => _InteractiveCanvasState();
@@ -54,12 +62,13 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
   @override
   void initState() {
     super.initState();
-    _transformController = TransformationController(
-      Matrix4.identity()..translate(-1433.0, -1628.0),
-    );
+    _transformController = widget.transformationController ??
+        TransformationController(
+          Matrix4.identity()..translate(-1433.0, -1628.0),
+        );
     _transformController.addListener(_onTransformUpdated);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (mounted && widget.transformationController == null) {
         _centerCanvas();
       }
     });
@@ -70,6 +79,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
     final scale = matrix.getMaxScaleOnAxis();
     _scaleNotifier.value = scale;
     widget.onTransformChanged?.call(matrix);
+    widget.onScaleChanged?.call(scale);
   }
 
   void _centerCanvas() {
@@ -85,7 +95,9 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
   @override
   void dispose() {
     _transformController.removeListener(_onTransformUpdated);
-    _transformController.dispose();
+    if (widget.transformationController == null) {
+      _transformController.dispose();
+    }
     _scaleNotifier.dispose();
     super.dispose();
   }
@@ -150,6 +162,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
         points: List.from(_activePoints),
         color: _currentInkColor,
         lineWeight: widget.currentLineWeight,
+        planeId: widget.activePlaneId,
       );
       widget.onStrokeCompleted?.call(newStroke);
     }
@@ -173,6 +186,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
             points: _activePoints,
             color: _currentInkColor,
             lineWeight: widget.currentLineWeight,
+            planeId: widget.activePlaneId,
           )
         : null;
 
@@ -183,9 +197,11 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
           // Infinite Canvas Pan/Zoom Layer
           InteractiveViewer(
             transformationController: _transformController,
-            boundaryMargin: const EdgeInsets.all(3000),
-            minScale: 0.25,
-            maxScale: 6.0,
+            boundaryMargin: widget.isInfiniteZoom
+                ? const EdgeInsets.all(12000)
+                : const EdgeInsets.all(3000),
+            minScale: widget.isInfiniteZoom ? 0.001 : 0.25,
+            maxScale: widget.isInfiniteZoom ? 25000.0 : 6.0,
             panEnabled: !_isDrawing,
             scaleEnabled: !_isDrawing,
             constrained: false,

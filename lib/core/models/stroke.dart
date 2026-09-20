@@ -45,6 +45,7 @@ class Stroke {
     required this.color,
     this.lineWeight = LineWeightType.crease,
     this.segmentColors,
+    this.planeId = 'plane_primary',
   }) : points = List.unmodifiable(points);
 
   /// Deserializes a [Stroke] from a JSON map.
@@ -61,11 +62,13 @@ class Stroke {
       (w) => w.name == weightStr,
       orElse: () => LineWeightType.crease,
     );
+    final plane = json['planeId'] as String? ?? 'plane_primary';
 
     return Stroke(
       points: pts,
       color: Color(colorVal),
       lineWeight: weight,
+      planeId: plane,
     );
   }
 
@@ -74,11 +77,15 @@ class Stroke {
   final LineWeightType lineWeight;
   final List<Color>? segmentColors;
 
+  /// The 3D spatial canvas plane this stroke resides on.
+  final String planeId;
+
   /// Serializes to a JSON map.
   Map<String, dynamic> toJson() => <String, dynamic>{
         'points': points.map((p) => p.toJson()).toList(),
         'color': color.value,
         'weight': lineWeight.name,
+        'planeId': planeId,
       };
 
   bool get isEmpty => points.isEmpty;

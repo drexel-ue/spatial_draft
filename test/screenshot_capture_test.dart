@@ -8,10 +8,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spatial_draft/core/models/app_drill_mode.dart';
+import 'package:spatial_draft/core/models/canvas_plane_3d.dart';
 import 'package:spatial_draft/core/models/draft_capture.dart';
 import 'package:spatial_draft/core/models/procedural_form.dart';
 import 'package:spatial_draft/core/models/skill_profile.dart';
 import 'package:spatial_draft/core/models/spatial_project.dart';
+import 'package:spatial_draft/core/models/stroke.dart';
+import 'package:spatial_draft/core/models/stroke_point.dart';
 import 'package:spatial_draft/core/theme/app_theme.dart';
 import 'package:spatial_draft/core/widgets/skill_profile_dialog.dart';
 import 'package:spatial_draft/drills/common/concept_guide_sheet.dart';
@@ -544,6 +547,122 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       await captureScreen(tester, '15_draft_projects_vault');
+    });
+
+    testWidgets('16 Infinite Zoom Vector Engine & Metric HUD', (tester) async {
+      tester.view.physicalSize = ipadMiniSize;
+      tester.view.devicePixelRatio = 1.5;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final zoomProject = SpatialProject(
+        id: 'proj_zoom_demo',
+        title: 'Avionics Multi-Scale Ideation',
+        mode: SandboxMode.infiniteZoom,
+        zoomScale: 10.0,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        buildTestScreen(
+          FreeformSandbox(
+            theme: AppThemeTokens.dark(),
+            gridStyle: GridStyle.solid,
+            gridType: GridType.squareMetric,
+            initialProject: zoomProject,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await captureScreen(tester, '16_infinite_zoom_engine');
+    });
+
+    testWidgets('17 Mental Canvas 3D Multi-Plane Parallax Stage',
+        (tester) async {
+      tester.view.physicalSize = ipadMiniSize;
+      tester.view.devicePixelRatio = 1.5;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final ground = CanvasPlane3D.groundFloor();
+      final leftWall = CanvasPlane3D.leftWall();
+
+      final frontStroke = Stroke(
+        points: const [
+          StrokePoint(
+            position: Offset(1800, 1800),
+            pressure: 0.7,
+            timestampMicros: 10,
+          ),
+          StrokePoint(
+            position: Offset(2200, 1800),
+            pressure: 0.8,
+            timestampMicros: 20,
+          ),
+          StrokePoint(
+            position: Offset(2200, 2200),
+            pressure: 0.8,
+            timestampMicros: 30,
+          ),
+          StrokePoint(
+            position: Offset(1800, 2200),
+            pressure: 0.7,
+            timestampMicros: 40,
+          ),
+          StrokePoint(
+            position: Offset(1800, 1800),
+            pressure: 0.7,
+            timestampMicros: 50,
+          ),
+        ],
+        color: const Color(0xFF00FFCC),
+        lineWeight: LineWeightType.crease,
+        planeId: 'plane_primary',
+      );
+
+      final groundStroke = Stroke(
+        points: const [
+          StrokePoint(
+            position: Offset(1700, 2000),
+            pressure: 0.7,
+            timestampMicros: 10,
+          ),
+          StrokePoint(
+            position: Offset(2300, 2000),
+            pressure: 0.7,
+            timestampMicros: 20,
+          ),
+        ],
+        color: const Color(0xFF38BDF8),
+        lineWeight: LineWeightType.silhouette,
+        planeId: ground.id,
+      );
+
+      final mentalProject = SpatialProject(
+        id: 'proj_mental_demo',
+        title: 'Architectural Isometric Stage',
+        mode: SandboxMode.mentalCanvas3D,
+        planes: [CanvasPlane3D.primaryFront(), ground, leftWall],
+        activePlaneId: ground.id,
+        cameraYaw: 0.52,
+        cameraPitch: 0.28,
+        cameraDistance: 950.0,
+        strokes: [frontStroke, groundStroke],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        buildTestScreen(
+          FreeformSandbox(
+            theme: AppThemeTokens.dark(),
+            gridStyle: GridStyle.solid,
+            gridType: GridType.squareMetric,
+            initialProject: mentalProject,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await captureScreen(tester, '17_mental_canvas_3d_stage');
     });
   });
 }

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:spatial_draft/core/models/canvas_plane_3d.dart';
 import 'package:spatial_draft/core/models/stroke.dart';
 import 'package:spatial_draft/core/theme/app_theme.dart';
 
@@ -49,6 +50,15 @@ enum SandboxMode {
   final IconData icon;
 }
 
+const _defaultPrimaryPlane = CanvasPlane3D(
+  id: 'plane_primary',
+  name: 'Primary Canvas (XY)',
+  originX: 0.0,
+  originY: 0.0,
+  originZ: 0.0,
+  colorValue: 0xFF00FFCC,
+);
+
 /// Represents an editable, persistent creative project in the drafting sandbox.
 class SpatialProject {
   /// Creates a [SpatialProject].
@@ -59,6 +69,11 @@ class SpatialProject {
     required this.createdAt,
     required this.updatedAt,
     this.strokes = const <Stroke>[],
+    this.planes = const <CanvasPlane3D>[_defaultPrimaryPlane],
+    this.activePlaneId = 'plane_primary',
+    this.cameraYaw = 0.0,
+    this.cameraPitch = 0.0,
+    this.cameraDistance = 800.0,
     this.gridType = GridType.squareMetric,
     this.gridStyle = GridStyle.solid,
     this.thumbnailBase64,
@@ -93,6 +108,20 @@ class SpatialProject {
         .map(Stroke.fromJson)
         .toList();
 
+    final rawPlanes = json['planes'] as List<dynamic>? ?? <dynamic>[];
+    List<CanvasPlane3D> parsedPlanes = rawPlanes
+        .whereType<Map<String, dynamic>>()
+        .map(CanvasPlane3D.fromJson)
+        .toList();
+    if (parsedPlanes.isEmpty) {
+      parsedPlanes = [CanvasPlane3D.primaryFront()];
+    }
+
+    final activePlane = json['activePlaneId'] as String? ?? 'plane_primary';
+    final camYaw = (json['cameraYaw'] as num?)?.toDouble() ?? 0.0;
+    final camPitch = (json['cameraPitch'] as num?)?.toDouble() ?? 0.0;
+    final camDist = (json['cameraDistance'] as num?)?.toDouble() ?? 800.0;
+
     return SpatialProject(
       id: json['id'] as String? ?? UniqueKey().toString(),
       title: json['title'] as String? ?? 'Untitled Draft',
@@ -104,6 +133,11 @@ class SpatialProject {
           ? DateTime.tryParse(json['updatedAt'] as String) ?? DateTime.now()
           : DateTime.now(),
       strokes: parsedStrokes,
+      planes: parsedPlanes,
+      activePlaneId: activePlane,
+      cameraYaw: camYaw,
+      cameraPitch: camPitch,
+      cameraDistance: camDist,
       gridType: parsedGridType,
       gridStyle: parsedGridStyle,
       thumbnailBase64: json['thumbnailBase64'] as String?,
@@ -131,6 +165,21 @@ class SpatialProject {
   /// All vector strokes belonging to this project.
   final List<Stroke> strokes;
 
+  /// All 3D sketching planes belonging to this spatial project.
+  final List<CanvasPlane3D> planes;
+
+  /// Currently active plane ID for drawing input.
+  final String activePlaneId;
+
+  /// Orbital camera yaw rotation (in radians).
+  final double cameraYaw;
+
+  /// Orbital camera pitch tilt (in radians).
+  final double cameraPitch;
+
+  /// Orbital camera distance from 3D stage origin.
+  final double cameraDistance;
+
   /// Background grid projection.
   final GridType gridType;
 
@@ -149,6 +198,16 @@ class SpatialProject {
   /// Last active viewport vertical pan offset.
   final double panOffsetY;
 
+  /// Returns the currently active [CanvasPlane3D].
+  CanvasPlane3D get activePlane {
+    return planes.firstWhere(
+      (p) => p.id == activePlaneId,
+      orElse: () => planes.isNotEmpty
+          ? planes.first
+          : CanvasPlane3D.primaryFront(),
+    );
+  }
+
   /// Serializes the project into a JSON map.
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
@@ -158,6 +217,11 @@ class SpatialProject {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'strokes': strokes.map((s) => s.toJson()).toList(),
+      'planes': planes.map((p) => p.toJson()).toList(),
+      'activePlaneId': activePlaneId,
+      'cameraYaw': cameraYaw,
+      'cameraPitch': cameraPitch,
+      'cameraDistance': cameraDistance,
       'gridType': gridType.name,
       'gridStyle': gridStyle.name,
       'thumbnailBase64': thumbnailBase64,
@@ -205,6 +269,11 @@ class SpatialProject {
     DateTime? createdAt,
     DateTime? updatedAt,
     List<Stroke>? strokes,
+    List<CanvasPlane3D>? planes,
+    String? activePlaneId,
+    double? cameraYaw,
+    double? cameraPitch,
+    double? cameraDistance,
     GridType? gridType,
     GridStyle? gridStyle,
     String? thumbnailBase64,
@@ -219,6 +288,11 @@ class SpatialProject {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       strokes: strokes ?? this.strokes,
+      planes: planes ?? this.planes,
+      activePlaneId: activePlaneId ?? this.activePlaneId,
+      cameraYaw: cameraYaw ?? this.cameraYaw,
+      cameraPitch: cameraPitch ?? this.cameraPitch,
+      cameraDistance: cameraDistance ?? this.cameraDistance,
       gridType: gridType ?? this.gridType,
       gridStyle: gridStyle ?? this.gridStyle,
       thumbnailBase64: thumbnailBase64 ?? this.thumbnailBase64,

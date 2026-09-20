@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:spatial_draft/core/models/canvas_plane_3d.dart';
 import 'package:spatial_draft/core/models/spatial_project.dart';
 import 'package:spatial_draft/core/models/stroke.dart';
 import 'package:spatial_draft/core/models/stroke_point.dart';
@@ -164,6 +165,34 @@ void main() {
       final stored = service.getProject(initial.id);
       expect(stored!.strokes.length, 1);
       expect(stored.zoomScale, 2.5);
+    });
+
+    test('persists 3D multi-plane scene graph and orbital camera state',
+        () async {
+      final initial = await service.createProject(
+        title: 'Multi-Plane Spatial Study',
+        mode: SandboxMode.mentalCanvas3D,
+      );
+
+      final groundPlane = CanvasPlane3D.groundFloor();
+      final updated = initial.copyWith(
+        planes: [CanvasPlane3D.primaryFront(), groundPlane],
+        activePlaneId: groundPlane.id,
+        cameraYaw: 0.523,
+        cameraPitch: 0.261,
+        cameraDistance: 1100.0,
+      );
+
+      await service.saveProject(updated);
+
+      final stored = service.getProject(initial.id);
+      expect(stored, isNotNull);
+      expect(stored!.planes.length, 2);
+      expect(stored.activePlaneId, 'plane_ground');
+      expect(stored.activePlane.id, 'plane_ground');
+      expect(stored.cameraYaw, 0.523);
+      expect(stored.cameraPitch, 0.261);
+      expect(stored.cameraDistance, 1100.0);
     });
   });
 }

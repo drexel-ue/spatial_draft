@@ -1,5 +1,10 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:spatial_draft/canvas/infinite_zoom/infinite_zoom_hud.dart';
 import 'package:spatial_draft/canvas/interactive_canvas.dart';
+import 'package:spatial_draft/canvas/mental_canvas/mental_canvas_turntable_dock.dart';
+import 'package:spatial_draft/canvas/mental_canvas/mental_canvas_viewport.dart';
+import 'package:spatial_draft/core/models/canvas_plane_3d.dart';
 import 'package:spatial_draft/core/models/spatial_project.dart';
 import 'package:spatial_draft/core/models/stroke.dart';
 import 'package:spatial_draft/core/theme/app_theme.dart';
@@ -35,10 +40,31 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
   LineWeightType _currentWeight = LineWeightType.crease;
   bool _showTooltip = true;
 
+  late final TransformationController _zoomController;
+  double _zoomScale = 1.0;
+
   @override
   void initState() {
     super.initState();
+    _zoomController = TransformationController();
+    _zoomController.addListener(_onZoomTransformUpdated);
     _initProject();
+  }
+
+  @override
+  void dispose() {
+    _zoomController.removeListener(_onZoomTransformUpdated);
+    _zoomController.dispose();
+    super.dispose();
+  }
+
+  void _onZoomTransformUpdated() {
+    final scale = _zoomController.value.getMaxScaleOnAxis();
+    if ((scale - _zoomScale).abs() > 0.0001) {
+      setState(() {
+        _zoomScale = scale;
+      });
+    }
   }
 
   void _initProject() {
@@ -162,6 +188,61 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
     );
   }
 
+  void _setZoomScale(double targetScale) {
+    final currentMatrix = _zoomController.value;
+    final currentScale = currentMatrix.getMaxScaleOnAxis();
+    if (currentScale <= 0) return;
+    _zoomByFactor(targetScale / currentScale);
+  }
+
+  void _zoomByFactor(double factor) {
+    final size = MediaQuery.of(context).size;
+    final center = Offset(size.width / 2.0, size.height / 2.0);
+    final matrix = _zoomController.value.clone();
+
+    final currentScale = matrix.getMaxScaleOnAxis();
+    final newScale = (currentScale * factor).clamp(0.001, 25000.0);
+    final effectiveFactor = newScale / currentScale;
+
+    final tx = matrix.storage[12];
+    final ty = matrix.storage[13];
+
+    final newTx = center.dx - (center.dx - tx) * effectiveFactor;
+    final newTy = center.dy - (center.dy - ty) * effectiveFactor;
+
+    _zoomController.value = Matrix4.identity()
+      ..translate(newTx, newTy)
+      ..scale(newScale);
+
+    setState(() {
+      _zoomScale = newScale;
+    });
+  }
+
+  void _resetZoom() {
+    final size = MediaQuery.of(context).size;
+    final tx = (size.width - 4000.0) / 2.0;
+    final ty = (size.height - 4000.0) / 2.0;
+    _zoomController.value = Matrix4.identity()..translate(tx, ty);
+    setState(() {
+      _zoomScale = 1.0;
+    });
+  }
+
+  void _faceActivePlane() {
+    final plane = _project.activePlane;
+    setState(() {
+      _project = _project.copyWith(
+        cameraYaw: -plane.yaw,
+        cameraPitch: (-plane.pitch).clamp(
+          -math.pi / 2.5,
+          math.pi / 2.5,
+        ),
+      );
+    });
+    _persistChanges();
+  }
+
   void _openGuide() {
     ConceptGuideSheet.show(
       context: context,
@@ -194,20 +275,73 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
     );
   }
 
+  Widget _buildCanvas(AppThemeTokens theme) {
+    switch (_project.mode) {
+      case SandboxMode.mentalCanvas3D:
+        return MentalCanvasViewport(
+          key: const ValueKey('mental_canvas_viewport'),
+          theme: theme,
+          planes: _project.planes,
+          activePlaneId: _project.activePlaneId,
+          strokes: _strokes,
+          currentLineWeight: _currentWeight,
+          cameraYaw: _project.cameraYaw,
+          cameraPitch: _project.cameraPitch,
+          cameraDistance: _project.cameraDistance,
+          onStrokeCompleted: _handleStrokeCompleted,
+          onCameraChanged: (yaw, pitch, distance) {
+            setState(() {
+              _project = _project.copyWith(
+                cameraYaw: yaw,
+                cameraPitch: pitch,
+                cameraDistance: distance,
+              );
+            });
+            _persistChanges();
+          },
+        );
+
+      case SandboxMode.infiniteZoom:
+        return InteractiveCanvas(
+          key: const ValueKey('infinite_zoom_canvas'),
+          theme: theme,
+          gridStyle: widget.gridStyle,
+          gridType: widget.gridType,
+          currentLineWeight: _currentWeight,
+          strokes: _strokes,
+          isInfiniteZoom: true,
+          transformationController: _zoomController,
+          activePlaneId: _project.activePlaneId,
+          onStrokeCompleted: _handleStrokeCompleted,
+          onScaleChanged: (scale) {
+            if ((scale - _zoomScale).abs() > 0.0001) {
+              setState(() => _zoomScale = scale);
+            }
+          },
+        );
+
+      case SandboxMode.vellum2D:
+        return InteractiveCanvas(
+          key: const ValueKey('vellum_2d_canvas'),
+          theme: theme,
+          gridStyle: widget.gridStyle,
+          gridType: widget.gridType,
+          currentLineWeight: _currentWeight,
+          strokes: _strokes,
+          isInfiniteZoom: false,
+          activePlaneId: _project.activePlaneId,
+          onStrokeCompleted: _handleStrokeCompleted,
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
 
     return Stack(
       children: [
-        InteractiveCanvas(
-          theme: theme,
-          gridStyle: widget.gridStyle,
-          gridType: widget.gridType,
-          currentLineWeight: _currentWeight,
-          strokes: _strokes,
-          onStrokeCompleted: _handleStrokeCompleted,
-        ),
+        _buildCanvas(theme),
 
         // Floating Project Title & Mode Pill (Top Left)
         Positioned(
@@ -228,6 +362,77 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
               theme: theme,
               onDismiss: () => setState(() => _showTooltip = false),
               onOpenGuide: _openGuide,
+            ),
+          ),
+
+        // Mode-Specific Floating HUD Dock (Directly Above Bottom Bar)
+        if (_project.mode == SandboxMode.infiniteZoom)
+          Positioned(
+            bottom: 96,
+            left: 24,
+            right: 24,
+            child: Center(
+              child: InfiniteZoomHud(
+                theme: theme,
+                zoomScale: _zoomScale,
+                onZoomPresetSelected: _setZoomScale,
+                onZoomStep: _zoomByFactor,
+                onResetZoom: _resetZoom,
+              ),
+            ),
+          ),
+
+        if (_project.mode == SandboxMode.mentalCanvas3D)
+          Positioned(
+            bottom: 96,
+            left: 24,
+            right: 24,
+            child: Center(
+              child: MentalCanvasTurntableDock(
+                theme: theme,
+                planes: _project.planes,
+                activePlaneId: _project.activePlaneId,
+                cameraYaw: _project.cameraYaw,
+                cameraPitch: _project.cameraPitch,
+                onCameraChanged: (yaw, pitch) {
+                  setState(() {
+                    _project = _project.copyWith(
+                      cameraYaw: yaw,
+                      cameraPitch: pitch,
+                    );
+                  });
+                  _persistChanges();
+                },
+                onSelectPlane: (id) {
+                  setState(() {
+                    _project = _project.copyWith(activePlaneId: id);
+                  });
+                  _persistChanges();
+                },
+                onAddPlane: (plane) {
+                  setState(() {
+                    final updated = List<CanvasPlane3D>.from(
+                      _project.planes,
+                    )..add(plane);
+                    _project = _project.copyWith(
+                      planes: updated,
+                      activePlaneId: plane.id,
+                    );
+                  });
+                  _persistChanges();
+                },
+                onSnapToPlane: _faceActivePlane,
+                onResetOrbit: () {
+                  setState(() {
+                    _project = _project.copyWith(
+                      cameraYaw: 0.0,
+                      cameraPitch: 0.0,
+                      cameraDistance: 900.0,
+                    );
+                  });
+                  _persistChanges();
+                },
+              ),
             ),
           ),
 
