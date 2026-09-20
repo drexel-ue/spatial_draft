@@ -194,14 +194,17 @@ class Stroke {
   }
 
   /// Returns a smoothed Path connecting all stroke points
-  Path toSmoothedPath() {
+  Path toSmoothedPath({bool scaleWithAuthoring = false}) {
     final path = Path();
     if (points.isEmpty) return path;
     if (points.length == 1) {
+      final scale = scaleWithAuthoring && authoringScale > 0.0
+          ? authoringScale
+          : 1.0;
       path.addOval(
         Rect.fromCircle(
           center: points.first.position,
-          radius: lineWeight.baseWidth / 2,
+          radius: (lineWeight.baseWidth / 2) / scale,
         ),
       );
       return path;
@@ -232,14 +235,23 @@ class Stroke {
   }
 
   /// Extracts dashed path segments for hidden lines
-  Path toDashedPath({double dashLength = 8.0, double dashSpace = 5.0}) {
-    final smoothed = toSmoothedPath();
+  Path toDashedPath({
+    double? dashLength,
+    double? dashSpace,
+    bool scaleWithAuthoring = true,
+  }) {
+    final scale = scaleWithAuthoring && authoringScale > 0.0
+        ? authoringScale
+        : 1.0;
+    final effectiveDash = (dashLength ?? 8.0) / scale;
+    final effectiveSpace = (dashSpace ?? 5.0) / scale;
+    final smoothed = toSmoothedPath(scaleWithAuthoring: scaleWithAuthoring);
     final dashed = Path();
     for (final metric in smoothed.computeMetrics()) {
       double distance = 0.0;
       bool draw = true;
       while (distance < metric.length) {
-        final length = draw ? dashLength : dashSpace;
+        final length = draw ? effectiveDash : effectiveSpace;
         if (draw) {
           dashed.addPath(
             metric.extractPath(

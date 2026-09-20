@@ -342,100 +342,109 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
 
   @override
   Widget build(BuildContext context) {
-    final currentScale = _transformController.value.getMaxScaleOnAxis();
-    final liveStroke = _isDrawing && _activePoints.isNotEmpty
-        ? Stroke(
-            points: _activePoints,
-            color: _currentInkColor,
-            lineWeight: widget.currentLineWeight,
-            brushStyle: widget.currentBrushStyle,
-            planeId: widget.activePlaneId,
-            authoringScale: currentScale,
-          )
-        : null;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewportSize = constraints.biggest;
+        final currentScale = _transformController.value.getMaxScaleOnAxis();
+        final liveStroke = _isDrawing && _activePoints.isNotEmpty
+            ? Stroke(
+                points: _activePoints,
+                color: _currentInkColor,
+                lineWeight: widget.currentLineWeight,
+                brushStyle: widget.currentBrushStyle,
+                planeId: widget.activePlaneId,
+                authoringScale: currentScale,
+              )
+            : null;
 
-    return ColoredBox(
-      color: widget.theme.canvasBackground,
-      child: Stack(
-        children: [
-          // Infinite Canvas Pan/Zoom Layer
-          InteractiveViewer(
-            transformationController: _transformController,
-            boundaryMargin: widget.isInfiniteZoom
-                ? const EdgeInsets.all(12000)
-                : const EdgeInsets.all(3000),
-            minScale: widget.isInfiniteZoom ? 0.001 : 0.25,
-            maxScale: widget.isInfiniteZoom ? 25000.0 : 6.0,
-            panEnabled: false,
-            scaleEnabled: false,
-            constrained: false,
-            child: SizedBox(
-              width: 4000,
-              height: 4000,
-              child: Stack(
-                children: [
-                  // 1. Procedural Grid Background
-                  CustomPaint(
-                    size: const Size(4000, 4000),
-                    painter: CanvasGridPainter(
-                      theme: widget.theme,
-                      gridStyle: widget.gridStyle,
-                      gridType: widget.gridType,
-                      transform: _transformController.value,
-                    ),
+        return ColoredBox(
+          color: widget.theme.canvasBackground,
+          child: Stack(
+            children: [
+              // Infinite Canvas Pan/Zoom Layer
+              InteractiveViewer(
+                transformationController: _transformController,
+                boundaryMargin: widget.isInfiniteZoom
+                    ? const EdgeInsets.all(12000)
+                    : const EdgeInsets.all(3000),
+                minScale: widget.isInfiniteZoom ? 0.001 : 0.25,
+                maxScale: widget.isInfiniteZoom ? 25000.0 : 6.0,
+                panEnabled: false,
+                scaleEnabled: false,
+                constrained: false,
+                child: SizedBox(
+                  width: 4000,
+                  height: 4000,
+                  child: Stack(
+                    children: [
+                      // 1. Procedural Grid Background
+                      CustomPaint(
+                        size: const Size(4000, 4000),
+                        painter: CanvasGridPainter(
+                          theme: widget.theme,
+                          gridStyle: widget.gridStyle,
+                          gridType: widget.gridType,
+                          transform: _transformController.value,
+                          viewportSize: viewportSize,
+                          repaint: _transformController,
+                        ),
+                      ),
+
+                      // 2. Procedural Exercise / Drill Overlay (if present)
+                      if (widget.backgroundDrillOverlay != null)
+                        Positioned.fill(
+                          child: widget.backgroundDrillOverlay!,
+                        ),
+
+                      // 3. Active & Completed Ink Layer
+                      CustomPaint(
+                        size: const Size(4000, 4000),
+                        painter: InkLayerPainter(
+                          completedStrokes: widget.strokes,
+                          activeStroke: liveStroke,
+                          theme: widget.theme,
+                          showHeatmap: widget.showHeatmap,
+                          currentScale: currentScale,
+                          repaint: _transformController,
+                        ),
+                      ),
+                    ],
                   ),
-
-                  // 2. Procedural Exercise / Drill Overlay (if present)
-                  if (widget.backgroundDrillOverlay != null)
-                    Positioned.fill(
-                      child: widget.backgroundDrillOverlay!,
-                    ),
-
-                  // 3. Active & Completed Ink Layer
-                  CustomPaint(
-                    size: const Size(4000, 4000),
-                    painter: InkLayerPainter(
-                      completedStrokes: widget.strokes,
-                      activeStroke: liveStroke,
-                      theme: widget.theme,
-                      showHeatmap: widget.showHeatmap,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+
+              // Raw Pointer Event Listener for Low-Latency Input
+              Positioned.fill(
+                child: Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerHover: _handlePointerHover,
+                  onPointerDown: _handlePointerDown,
+                  onPointerMove: _handlePointerMove,
+                  onPointerUp: _handlePointerUp,
+                  onPointerCancel: _handlePointerCancel,
+                  onPointerSignal: _handlePointerSignal,
+                ),
+              ),
+
+              // Stylus Precision Hover Reticle
+              if (_isHovering && _hoverPosition != null && !_isDrawing)
+                StylusHoverReticle(
+                  theme: widget.theme,
+                  position: _hoverPosition!,
+                  currentLineWeight: widget.currentLineWeight,
+                ),
+
+              // Floating Recenter & Zoom HUD dock
+              if (widget.showRecenterHud)
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: _buildRecenterHud(widget.theme),
+                ),
+            ],
           ),
-
-          // Raw Pointer Event Listener for Low-Latency Input
-          Positioned.fill(
-            child: Listener(
-              behavior: HitTestBehavior.translucent,
-              onPointerHover: _handlePointerHover,
-              onPointerDown: _handlePointerDown,
-              onPointerMove: _handlePointerMove,
-              onPointerUp: _handlePointerUp,
-              onPointerCancel: _handlePointerCancel,
-              onPointerSignal: _handlePointerSignal,
-            ),
-          ),
-
-          // Stylus Precision Hover Reticle
-          if (_isHovering && _hoverPosition != null && !_isDrawing)
-            StylusHoverReticle(
-              theme: widget.theme,
-              position: _hoverPosition!,
-              currentLineWeight: widget.currentLineWeight,
-            ),
-
-          // Floating Recenter & Zoom HUD dock
-          if (widget.showRecenterHud)
-            Positioned(
-              top: 16,
-              right: 16,
-              child: _buildRecenterHud(widget.theme),
-            ),
-        ],
-      ),
+        );
+      },
     );
   }
 

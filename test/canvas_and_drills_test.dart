@@ -100,6 +100,72 @@ void main() {
       painter.paint(canvas, size);
       expect(painter.shouldRepaint(painter), isTrue);
     });
+
+    test('CanvasGridPainter adapts spacing and hairlines across zoom scales',
+        () {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      const size = Size(4000, 4000);
+      const viewportSize = Size(1133, 744);
+
+      final scales = [0.01, 0.5, 1.0, 10.0, 100.0, 1000.0];
+      for (final s in scales) {
+        final transform = Matrix4.identity()..scale(s, s);
+        final painter = CanvasGridPainter(
+          gridStyle: GridStyle.solid,
+          gridType: GridType.squareMetric,
+          theme: theme,
+          transform: transform,
+          viewportSize: viewportSize,
+        );
+        painter.paint(canvas, size);
+
+        final nextPainter = CanvasGridPainter(
+          gridStyle: GridStyle.solid,
+          gridType: GridType.squareMetric,
+          theme: theme,
+          transform: Matrix4.identity()..scale(s * 2, s * 2),
+          viewportSize: viewportSize,
+        );
+        expect(painter.shouldRepaint(nextPainter), isTrue);
+      }
+    });
+
+    test(
+        'InkLayerPainter renders authoring-compensated strokes with dampening',
+        () {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      const size = Size(4000, 4000);
+
+      final strokeAtDeepZoom = Stroke(
+        points: [
+          const StrokePoint(position: Offset(10, 10), timestampMicros: 1000),
+          const StrokePoint(position: Offset(20, 20), timestampMicros: 2000),
+        ],
+        color: Colors.white,
+        lineWeight: LineWeightType.crease,
+        authoringScale: 50.0,
+      );
+
+      final macroStroke = Stroke(
+        points: [
+          const StrokePoint(position: Offset.zero, timestampMicros: 1000),
+          const StrokePoint(position: Offset(100, 100), timestampMicros: 2000),
+        ],
+        color: Colors.white,
+        lineWeight: LineWeightType.silhouette,
+        authoringScale: 1.0,
+      );
+
+      final painter = InkLayerPainter(
+        completedStrokes: [strokeAtDeepZoom, macroStroke],
+        theme: theme,
+        currentScale: 50.0,
+      );
+
+      expect(() => painter.paint(canvas, size), returnsNormally);
+    });
   });
 
   group('InteractiveCanvas Widget Tests', () {
@@ -223,7 +289,7 @@ void main() {
       expect(completed, isNull);
       // Scale should have increased from 1.0
       expect(lastScale, isNotNull);
-      expect(lastScale!, greaterThan(1.0));
+      expect(lastScale, greaterThan(1.0));
     });
   });
 
