@@ -568,7 +568,7 @@ void main() {
       expect(find.text('Shoulder Over Wrist'), findsOneWidget);
 
       // Tap Next Slide
-      await tester.tap(find.text('Next ➔'));
+      await tester.tap(find.text('Next'));
       await tester.pumpAndSettle();
 
       expect(find.text('Practice Before Contact'), findsOneWidget);
@@ -640,9 +640,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('SPATIAL DRAFT'), findsOneWidget);
-      expect(find.text('Skip ➔'), findsOneWidget);
+      expect(find.text('Skip'), findsOneWidget);
 
-      await tester.tap(find.text('Skip ➔'));
+      await tester.tap(find.text('Skip'));
       await tester.pump(const Duration(seconds: 1));
 
       expect(finished, isTrue);

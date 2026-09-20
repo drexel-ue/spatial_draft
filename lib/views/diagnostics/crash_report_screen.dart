@@ -103,7 +103,14 @@ class _CrashReportScreenState extends State<CrashReportScreen> {
               backgroundColor: const Color(0xFFEF4444),
               foregroundColor: Colors.white,
             ),
-            child: const Text('Clear All'),
+            child: Text(
+              'Clear All',
+              style: theme.headingStyle.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
           ),
         ],
       ),

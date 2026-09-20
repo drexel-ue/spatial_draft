@@ -319,13 +319,26 @@ class _OnboardingModalState extends State<OnboardingModal> {
                             widget.onComplete();
                           }
                         },
-                        child: Text(
-                          _currentIndex == _slides.length - 1 ? 'Start Training ➔' : 'Next ➔',
-                          style: theme.headingStyle.copyWith(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _currentIndex == _slides.length - 1
+                                  ? 'Start Training'
+                                  : 'Next',
+                              style: theme.headingStyle.copyWith(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                          ],
                         ),
                       ),
                     ],

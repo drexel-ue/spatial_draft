@@ -193,10 +193,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               top: 24,
               right: 24,
               child: SafeArea(
-                child: TextButton(
+                child: TextButton.icon(
                   onPressed: widget.onFinish,
-                  child: Text(
-                    'Skip ➔',
+                  icon: const Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 13,
+                    color: Color(0xFF64748B),
+                  ),
+                  label: Text(
+                    'Skip',
                     style: AppThemeTokens.createMonoStyle(
                       color: const Color(0xFF64748B),
                       fontSize: 12,

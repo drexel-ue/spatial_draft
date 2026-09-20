@@ -339,7 +339,14 @@ class _PlaneTransformSheetState extends State<PlaneTransformSheet> {
                     Expanded(
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.copy_rounded, size: 16),
-                        label: const Text('Duplicate Plane'),
+                        label: Text(
+                          'Duplicate Plane',
+                          style: theme.headingStyle.copyWith(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: theme.borderHighlight,
+                          ),
+                        ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: theme.borderHighlight,
                           side: BorderSide(color: theme.borderHighlight),
@@ -361,7 +368,14 @@ class _PlaneTransformSheetState extends State<PlaneTransformSheet> {
                           Icons.delete_outline_rounded,
                           size: 16,
                         ),
-                        label: const Text('Delete Plane'),
+                        label: Text(
+                          'Delete Plane',
+                          style: theme.headingStyle.copyWith(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: theme.danger,
+                          ),
+                        ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: theme.danger,
                           side: BorderSide(color: theme.danger),

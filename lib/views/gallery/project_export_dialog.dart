@@ -357,7 +357,14 @@ class _ProjectExportDialogState extends State<ProjectExportDialog> {
             ),
           ),
           icon: const Icon(Icons.copy_rounded, size: 18),
-          label: const Text('Copy File Code'),
+          label: Text(
+            'Copy File Code',
+            style: theme.headingStyle.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
           onPressed: _handleExport,
         ),
       ],

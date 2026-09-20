@@ -64,6 +64,12 @@ Future<void> _loadAllFontVariants() async {
     'MaterialIcons': 'assets/fonts/MaterialIcons-Regular.otf',
     'MaterialIcons-Regular': 'assets/fonts/MaterialIcons-Regular.otf',
     'packages/flutter_test/MaterialIcons': 'assets/fonts/MaterialIcons-Regular.otf',
+    'Roboto': 'assets/fonts/Inter-Regular.ttf',
+    'Roboto-Bold': 'assets/fonts/Inter-Bold.ttf',
+    'Roboto-Medium': 'assets/fonts/Inter-Medium.ttf',
+    'Roboto-SemiBold': 'assets/fonts/Inter-SemiBold.ttf',
+    'sans-serif': 'assets/fonts/Inter-Regular.ttf',
+    '.AppleSystemUIFont': 'assets/fonts/Inter-Regular.ttf',
   };
 
   for (final MapEntry<String, String> entry in fonts.entries) {
@@ -102,9 +108,14 @@ void main() {
 
   Widget buildTestScreen(Widget child, {ThemeData? theme}) {
     boundaryKey = GlobalKey();
+    final baseTheme = theme ?? ThemeData.dark();
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: theme ?? ThemeData.dark(),
+      theme: baseTheme.copyWith(
+        textTheme: baseTheme.textTheme.apply(
+          fontFamily: 'Inter',
+        ),
+      ),
       home: Scaffold(
         backgroundColor: const Color(0xFF0F1115),
         body: RepaintBoundary(key: boundaryKey, child: child),

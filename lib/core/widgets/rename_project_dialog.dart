@@ -251,7 +251,14 @@ class _RenameProjectDialogState extends State<RenameProjectDialog> {
                 ),
               ),
               onPressed: isValid ? _submit : null,
-              child: const Text('Save Name'),
+              child: Text(
+                'Save Name',
+                style: theme.headingStyle.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
             );
           },
         ),
