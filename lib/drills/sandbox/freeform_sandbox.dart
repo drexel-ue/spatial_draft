@@ -112,6 +112,39 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
     }
   }
 
+  Future<void> _createNewDraft() async {
+    final nextNum = ProjectService.instance.projects.length + 1;
+    final title = await RenameProjectDialog.show(
+      context: context,
+      currentTitle: 'Spatial Draft #$nextNum',
+      theme: widget.theme,
+      dialogTitle: 'New Drafting Project',
+    );
+    if (title != null && title.trim().isNotEmpty) {
+      final newProj = await ProjectService.instance.createProject(
+        title: title.trim(),
+        mode: _project.mode,
+        gridType: widget.gridType,
+        gridStyle: widget.gridStyle,
+      );
+      setState(() {
+        _project = newProj;
+        _strokes.clear();
+      });
+      widget.onProjectUpdated?.call(_project);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Created and opened "${newProj.title}"'),
+            backgroundColor: widget.theme.borderHighlight,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   void _cycleMode() {
     const values = SandboxMode.values;
     final nextIndex = (values.indexOf(_project.mode) + 1) % values.length;
@@ -398,9 +431,6 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
             // Mode Selector Badge
             InkWell(
               onTap: _cycleMode,
-              borderRadius: const BorderRadius.horizontal(
-                right: Radius.circular(12),
-              ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -424,6 +454,48 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
                       size: 14,
                     ),
                   ],
+                ),
+              ),
+            ),
+
+            Container(
+              width: 1,
+              height: 18,
+              color: theme.borderSubtle,
+            ),
+
+            // New Draft Button [+]
+            InkWell(
+              onTap: _createNewDraft,
+              borderRadius: const BorderRadius.horizontal(
+                right: Radius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: 8,
+                ),
+                child: Tooltip(
+                  message: 'Create New Draft Project',
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.add_rounded,
+                        color: theme.accentCyan,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        'New',
+                        style: theme.monoStyle.copyWith(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: theme.accentCyan,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
