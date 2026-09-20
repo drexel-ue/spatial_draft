@@ -20,9 +20,11 @@ class InteractiveCanvas extends StatefulWidget {
     this.backgroundDrillOverlay,
     this.showHeatmap = false,
     this.allowFingerDrawing = true,
+    this.showRecenterHud = true,
     this.onStrokeCompleted,
     required this.strokes,
     this.onClear,
+    this.onTransformChanged,
   });
   final AppThemeTokens theme;
   final GridStyle gridStyle;
@@ -32,9 +34,11 @@ class InteractiveCanvas extends StatefulWidget {
   final Widget? backgroundDrillOverlay;
   final bool showHeatmap;
   final bool allowFingerDrawing;
+  final bool showRecenterHud;
   final void Function(Stroke stroke)? onStrokeCompleted;
   final List<Stroke> strokes;
   final VoidCallback? onClear;
+  final void Function(Matrix4 transform)? onTransformChanged;
 
   @override
   State<InteractiveCanvas> createState() => _InteractiveCanvasState();
@@ -42,6 +46,7 @@ class InteractiveCanvas extends StatefulWidget {
 
 class _InteractiveCanvasState extends State<InteractiveCanvas> {
   late final TransformationController _transformController;
+  final ValueNotifier<double> _scaleNotifier = ValueNotifier<double>(1.0);
   final List<StrokePoint> _activePoints = [];
   bool _isDrawing = false;
   int _activePointerId = -1;
@@ -52,11 +57,19 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
     _transformController = TransformationController(
       Matrix4.identity()..translate(-1433.0, -1628.0),
     );
+    _transformController.addListener(_onTransformUpdated);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _centerCanvas();
       }
     });
+  }
+
+  void _onTransformUpdated() {
+    final matrix = _transformController.value;
+    final scale = matrix.getMaxScaleOnAxis();
+    _scaleNotifier.value = scale;
+    widget.onTransformChanged?.call(matrix);
   }
 
   void _centerCanvas() {
@@ -71,7 +84,9 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
 
   @override
   void dispose() {
+    _transformController.removeListener(_onTransformUpdated);
     _transformController.dispose();
+    _scaleNotifier.dispose();
     super.dispose();
   }
 
@@ -221,7 +236,90 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
               onPointerCancel: _handlePointerCancel,
             ),
           ),
+
+          // Floating Recenter & Zoom HUD dock
+          if (widget.showRecenterHud)
+            Positioned(
+              top: 16,
+              right: 16,
+              child: _buildRecenterHud(widget.theme),
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRecenterHud(AppThemeTokens theme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.surfaceGlass,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.borderSubtle, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.18),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Zoom percentage badge (tap to reset to 100%)
+            InkWell(
+              onTap: _centerCanvas,
+              borderRadius: const BorderRadius.horizontal(
+                left: Radius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                child: ValueListenableBuilder<double>(
+                  valueListenable: _scaleNotifier,
+                  builder: (ctx, scale, _) {
+                    final percent = (scale * 100).round();
+                    return Text(
+                      '$percent%',
+                      style: theme.monoStyle.copyWith(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: theme.secondaryInk,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+
+            Container(
+              width: 1,
+              height: 16,
+              color: theme.borderSubtle,
+            ),
+
+            // Recenter button
+            IconButton(
+              icon: Icon(
+                Icons.filter_center_focus_rounded,
+                color: theme.secondaryInk,
+                size: 18,
+              ),
+              tooltip: 'Recenter Canvas (1:1)',
+              splashRadius: 18,
+              constraints: const BoxConstraints(
+                minWidth: 36,
+                minHeight: 34,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              onPressed: _centerCanvas,
+            ),
+          ],
+        ),
       ),
     );
   }

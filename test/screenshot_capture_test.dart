@@ -11,6 +11,7 @@ import 'package:spatial_draft/core/models/app_drill_mode.dart';
 import 'package:spatial_draft/core/models/draft_capture.dart';
 import 'package:spatial_draft/core/models/procedural_form.dart';
 import 'package:spatial_draft/core/models/skill_profile.dart';
+import 'package:spatial_draft/core/models/spatial_project.dart';
 import 'package:spatial_draft/core/theme/app_theme.dart';
 import 'package:spatial_draft/core/widgets/skill_profile_dialog.dart';
 import 'package:spatial_draft/drills/common/concept_guide_sheet.dart';
@@ -24,6 +25,7 @@ import 'package:spatial_draft/drills/sandbox/freeform_sandbox.dart';
 import 'package:spatial_draft/onboarding/onboarding_modal.dart';
 import 'package:spatial_draft/onboarding/splash_screen.dart';
 import 'package:spatial_draft/services/gallery_service.dart';
+import 'package:spatial_draft/services/project_service.dart';
 import 'package:spatial_draft/views/form_library/form_library_sheet.dart';
 import 'package:spatial_draft/views/gallery/gallery_screen.dart';
 
@@ -508,6 +510,40 @@ void main() {
       );
       await tester.pumpAndSettle();
       await captureScreen(tester, '14_procedural_form_library');
+    });
+
+    testWidgets('15 Draft Projects Vault & File Manager', (tester) async {
+      tester.view.physicalSize = ipadMiniSize;
+      tester.view.devicePixelRatio = 1.5;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await ProjectService.instance.init();
+      await ProjectService.instance.clearAll();
+
+      await ProjectService.instance.createProject(
+        title: 'Turbine Engine Housing',
+        mode: SandboxMode.mentalCanvas3D,
+      );
+      await ProjectService.instance.createProject(
+        title: 'Avionics Multi-Scale Schematic',
+        mode: SandboxMode.infiniteZoom,
+      );
+      await ProjectService.instance.createProject(
+        title: 'Mechanical Bracket Rev C',
+        mode: SandboxMode.vellum2D,
+      );
+
+      await tester.pumpWidget(
+        buildTestScreen(
+          GalleryScreen(
+            theme: AppThemeTokens.dark(),
+            initialTab: 0,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await captureScreen(tester, '15_draft_projects_vault');
     });
   });
 }

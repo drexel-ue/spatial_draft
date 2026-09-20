@@ -8,6 +8,7 @@ import 'package:spatial_draft/core/models/app_drill_mode.dart';
 import 'package:spatial_draft/core/models/draft_capture.dart';
 import 'package:spatial_draft/core/models/procedural_form.dart';
 import 'package:spatial_draft/core/models/skill_profile.dart';
+import 'package:spatial_draft/core/models/spatial_project.dart';
 import 'package:spatial_draft/core/theme/app_theme.dart';
 import 'package:spatial_draft/core/widgets/skill_profile_dialog.dart';
 import 'package:spatial_draft/drills/common/concept_guide_sheet.dart';
@@ -22,6 +23,7 @@ import 'package:spatial_draft/onboarding/onboarding_modal.dart';
 import 'package:spatial_draft/onboarding/splash_screen.dart';
 import 'package:spatial_draft/services/app_log_service.dart';
 import 'package:spatial_draft/services/gallery_service.dart';
+import 'package:spatial_draft/services/project_service.dart';
 import 'package:spatial_draft/views/diagnostics/crash_report_screen.dart';
 import 'package:spatial_draft/views/form_library/form_library_sheet.dart';
 import 'package:spatial_draft/views/gallery/gallery_screen.dart';
@@ -36,6 +38,9 @@ Future<void> main() async {
 
   // Initialize draft gallery archive
   await GalleryService.instance.init();
+
+  // Initialize spatial project storage
+  await ProjectService.instance.init();
 
   // Global Flutter framework error hook
   FlutterError.onError = (details) {
@@ -143,6 +148,7 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
 
   final SkillProfile _skillProfile = SkillProfile();
   ProceduralFormId _activeFormId = ProceduralFormId.eyeOrbit;
+  SpatialProject? _activeProject;
   bool _hasSeenOnboarding = false;
   final GlobalKey _canvasCaptureKey = GlobalKey();
   bool _isCapturing = false;
@@ -178,11 +184,18 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
     );
   }
 
-  void _openGallery() {
+  void _openGallery({int initialTab = 1}) {
     final theme = AppThemeTokens.of(widget.themeMode);
     GalleryScreen.open(
       context: context,
       theme: theme,
+      initialTab: initialTab,
+      onSelectProject: (project) {
+        setState(() {
+          _activeProject = project;
+          _currentDrill = AppDrillMode.sandbox;
+        });
+      },
     );
   }
 
@@ -621,209 +634,280 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
             const SizedBox(width: 8),
 
             // Right-hand tools & action icons
-            IconButtonTheme(
-              data: const IconButtonThemeData(
-                style: ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                  padding: WidgetStatePropertyAll(EdgeInsets.all(4)),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-
-          // Theme Switcher Menu (Light, Dark, Blueprint)
-          PopupMenuButton<AppThemeMode>(
-            tooltip: 'App Theme',
-            initialValue: widget.themeMode,
-            onSelected: (mode) => widget.onThemeChanged(mode),
-            icon: Icon(
-              widget.themeMode == AppThemeMode.light
-                  ? Icons.light_mode_outlined
-                  : (widget.themeMode == AppThemeMode.dark ? Icons.dark_mode_outlined : Icons.brush_outlined),
-              size: 20,
-              color: theme.defaultInk,
-            ),
-            itemBuilder: (ctx) => [
-              const PopupMenuItem(
-                value: AppThemeMode.light,
-                child: Row(
-                  children: [
-                    Icon(Icons.light_mode_outlined, size: 18),
-                    SizedBox(width: 10),
-                    Expanded(child: Text('Light Studio')),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: AppThemeMode.dark,
-                child: Row(
-                  children: [
-                    Icon(Icons.dark_mode_outlined, size: 18),
-                    SizedBox(width: 10),
-                    Expanded(child: Text('Dark Obsidian')),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: AppThemeMode.blueprint,
-                child: Row(
-                  children: [
-                    Icon(Icons.brush_outlined, size: 18),
-                    SizedBox(width: 10),
-                    Expanded(child: Text('Drafting Blueprint')),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          // Grid Style Selector (Solid, Dotted, Dashed, None)
-          PopupMenuButton<GridStyle>(
-            tooltip: 'Grid Line Style',
-            initialValue: _gridStyle,
-            onSelected: (style) => setState(() => _gridStyle = style),
-            icon: Icon(Icons.grid_4x4_rounded, size: 20, color: theme.defaultInk),
-            itemBuilder: (ctx) => [
-              const PopupMenuItem(value: GridStyle.solid, child: Text('Solid Lines')),
-              const PopupMenuItem(value: GridStyle.dotted, child: Text('Dotted Grid')),
-              const PopupMenuItem(value: GridStyle.dashed, child: Text('Dashed Lines')),
-              const PopupMenuItem(value: GridStyle.none, child: Text('No Grid (Blank)')),
-            ],
-          ),
-
-          // Grid Type Selector (Square, Isometric, Perspective)
-          PopupMenuButton<GridType>(
-            tooltip: 'Grid Projection',
-            initialValue: _gridType,
-            onSelected: (type) => setState(() => _gridType = type),
-            icon: Icon(Icons.straighten_rounded, size: 20, color: theme.defaultInk),
-            itemBuilder: (ctx) => [
-              const PopupMenuItem(value: GridType.squareMetric, child: Text('Square Metric')),
-              const PopupMenuItem(value: GridType.isometric, child: Text('Isometric 30°')),
-              const PopupMenuItem(value: GridType.perspective, child: Text('Perspective Vanishing')),
-            ],
-          ),
-
-          const VerticalDivider(width: 20, indent: 14, endIndent: 14),
-
-          // Neuromotor Profile Button
-          IconButton(
-            tooltip: 'Neuromotor Skill Matrix',
-            icon: Icon(Icons.hub_rounded, color: theme.accentCyan, size: 20),
-            onPressed: _openSkillProfile,
-          ),
-
-          // Draft Gallery [🖼️]
-          IconButton(
-            tooltip: 'Draft Gallery',
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(
-                  Icons.collections_rounded,
-                  color: theme.defaultInk,
-                  size: 20,
-                ),
-                ValueListenableBuilder<List<DraftCapture>>(
-                  valueListenable: GalleryService.instance.capturesNotifier,
-                  builder: (ctx, captures, _) {
-                    if (captures.isEmpty) return const SizedBox.shrink();
-                    return Positioned(
-                      top: -4,
-                      right: -4,
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: theme.accentCyan,
-                          shape: BoxShape.circle,
+            Flexible(
+              fit: FlexFit.loose,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: IconButtonTheme(
+                  data: const IconButtonThemeData(
+                    style: ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                      padding: WidgetStatePropertyAll(EdgeInsets.all(4)),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Theme Switcher Menu (Light, Dark, Blueprint)
+                      PopupMenuButton<AppThemeMode>(
+                        tooltip: 'App Theme',
+                        initialValue: widget.themeMode,
+                        onSelected: (mode) => widget.onThemeChanged(mode),
+                        icon: Icon(
+                          widget.themeMode == AppThemeMode.light
+                              ? Icons.light_mode_outlined
+                              : (widget.themeMode == AppThemeMode.dark
+                                  ? Icons.dark_mode_outlined
+                                  : Icons.brush_outlined),
+                          size: 20,
+                          color: theme.defaultInk,
                         ),
-                        constraints: const BoxConstraints(
-                          minWidth: 14,
-                          minHeight: 14,
-                        ),
-                        child: Text(
-                          '${captures.length}',
-                          style: const TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black,
+                        itemBuilder: (ctx) => [
+                          const PopupMenuItem(
+                            value: AppThemeMode.light,
+                            child: Row(
+                              children: [
+                                Icon(Icons.light_mode_outlined, size: 18),
+                                SizedBox(width: 10),
+                                Expanded(child: Text('Light Studio')),
+                              ],
+                            ),
                           ),
-                          textAlign: TextAlign.center,
+                          const PopupMenuItem(
+                            value: AppThemeMode.dark,
+                            child: Row(
+                              children: [
+                                Icon(Icons.dark_mode_outlined, size: 18),
+                                SizedBox(width: 10),
+                                Expanded(child: Text('Dark Obsidian')),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: AppThemeMode.blueprint,
+                            child: Row(
+                              children: [
+                                Icon(Icons.brush_outlined, size: 18),
+                                SizedBox(width: 10),
+                                Expanded(child: Text('Drafting Blueprint')),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Grid Style Selector (Solid, Dotted, Dashed, None)
+                      PopupMenuButton<GridStyle>(
+                        tooltip: 'Grid Line Style',
+                        initialValue: _gridStyle,
+                        onSelected: (style) =>
+                            setState(() => _gridStyle = style),
+                        icon: Icon(
+                          Icons.grid_4x4_rounded,
+                          size: 20,
+                          color: theme.defaultInk,
+                        ),
+                        itemBuilder: (ctx) => [
+                          const PopupMenuItem(
+                            value: GridStyle.solid,
+                            child: Text('Solid Lines'),
+                          ),
+                          const PopupMenuItem(
+                            value: GridStyle.dotted,
+                            child: Text('Dotted Grid'),
+                          ),
+                          const PopupMenuItem(
+                            value: GridStyle.dashed,
+                            child: Text('Dashed Lines'),
+                          ),
+                          const PopupMenuItem(
+                            value: GridStyle.none,
+                            child: Text('No Grid (Blank)'),
+                          ),
+                        ],
+                      ),
+
+                      // Grid Type Selector (Square, Isometric, Perspective)
+                      PopupMenuButton<GridType>(
+                        tooltip: 'Grid Projection',
+                        initialValue: _gridType,
+                        onSelected: (type) =>
+                            setState(() => _gridType = type),
+                        icon: Icon(
+                          Icons.straighten_rounded,
+                          size: 20,
+                          color: theme.defaultInk,
+                        ),
+                        itemBuilder: (ctx) => [
+                          const PopupMenuItem(
+                            value: GridType.squareMetric,
+                            child: Text('Square Metric'),
+                          ),
+                          const PopupMenuItem(
+                            value: GridType.isometric,
+                            child: Text('Isometric 30°'),
+                          ),
+                          const PopupMenuItem(
+                            value: GridType.perspective,
+                            child: Text('Perspective Vanishing'),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(
+                        height: 24,
+                        child: VerticalDivider(
+                          width: 16,
+                          indent: 2,
+                          endIndent: 2,
                         ),
                       ),
-                    );
-                  },
+
+                      // Neuromotor Profile Button
+                      IconButton(
+                        tooltip: 'Neuromotor Skill Matrix',
+                        icon: Icon(
+                          Icons.hub_rounded,
+                          color: theme.accentCyan,
+                          size: 20,
+                        ),
+                        onPressed: _openSkillProfile,
+                      ),
+
+                      // Draft Gallery [🖼️]
+                      IconButton(
+                        tooltip: 'Draft Gallery',
+                        icon: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Icon(
+                              Icons.collections_rounded,
+                              color: theme.defaultInk,
+                              size: 20,
+                            ),
+                            ValueListenableBuilder<List<DraftCapture>>(
+                              valueListenable:
+                                  GalleryService.instance.capturesNotifier,
+                              builder: (ctx, captures, _) {
+                                if (captures.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Positioned(
+                                  top: -4,
+                                  right: -4,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      color: theme.accentCyan,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 14,
+                                      minHeight: 14,
+                                    ),
+                                    child: Text(
+                                      '${captures.length}',
+                                      style: const TextStyle(
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.black,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                        onPressed: () => _openGallery(initialTab: 1),
+                      ),
+
+                      // Project Vault & File Manager [📁]
+                      IconButton(
+                        tooltip: 'Draft Projects & Vault',
+                        icon: Icon(
+                          Icons.folder_copy_outlined,
+                          color: theme.borderHighlight,
+                          size: 20,
+                        ),
+                        onPressed: () => _openGallery(initialTab: 0),
+                      ),
+
+                      // Canvas Snapshot [📸]
+                      IconButton(
+                        tooltip: 'Capture Canvas Snapshot',
+                        icon: Icon(
+                          Icons.camera_alt_outlined,
+                          color: theme.accentCyan,
+                          size: 20,
+                        ),
+                        onPressed: _captureCanvasSnapshot,
+                      ),
+
+                      // Procedural Form Library [📐]
+                      IconButton(
+                        tooltip: 'Procedural Form Library',
+                        icon: Icon(
+                          Icons.category_outlined,
+                          color: theme.borderHighlight,
+                          size: 20,
+                        ),
+                        onPressed: _openFormLibrary,
+                      ),
+
+                      // Diagnostics & Crash Logs [🐛]
+                      IconButton(
+                        tooltip: 'Diagnostics & Crash Logs',
+                        icon: Icon(
+                          Icons.bug_report_outlined,
+                          color: theme.warning,
+                          size: 20,
+                        ),
+                        onPressed: _openDiagnostics,
+                      ),
+
+                      // Concept Guide [ℹ️]
+                      IconButton(
+                        tooltip: 'Concept Guide & Scoring Formulas',
+                        icon: Icon(
+                          Icons.info_outline_rounded,
+                          color: theme.accentAmber,
+                          size: 20,
+                        ),
+                        onPressed: _openActiveGuide,
+                      ),
+
+                      // Orientation Primer [?]
+                      IconButton(
+                        tooltip: 'Replay Orientation Primer',
+                        icon: Icon(
+                          Icons.help_outline_rounded,
+                          color: theme.secondaryInk,
+                          size: 20,
+                        ),
+                        onPressed: _showOnboarding,
+                      ),
+
+                      // Splash Screen [🎬]
+                      if (widget.onReplaySplash != null)
+                        IconButton(
+                          tooltip: 'Preview Animated Splash',
+                          icon: Icon(
+                            Icons.movie_filter_outlined,
+                            color: theme.secondaryInk,
+                            size: 20,
+                          ),
+                          onPressed: widget.onReplaySplash,
+                        ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-            onPressed: _openGallery,
-          ),
-
-          // Canvas Snapshot [📸]
-          IconButton(
-            tooltip: 'Capture Canvas Snapshot',
-            icon: Icon(
-              Icons.camera_alt_outlined,
-              color: theme.accentCyan,
-              size: 20,
-            ),
-            onPressed: _captureCanvasSnapshot,
-          ),
-
-          // Procedural Form Library [📐]
-          IconButton(
-            tooltip: 'Procedural Form Library',
-            icon: Icon(
-              Icons.category_outlined,
-              color: theme.borderHighlight,
-              size: 20,
-            ),
-            onPressed: _openFormLibrary,
-          ),
-
-          // Diagnostics & Crash Logs [🐛]
-          IconButton(
-            tooltip: 'Diagnostics & Crash Logs',
-            icon: Icon(
-              Icons.bug_report_outlined,
-              color: theme.warning,
-              size: 20,
-            ),
-            onPressed: _openDiagnostics,
-          ),
-
-          // Concept Guide [ℹ️]
-          IconButton(
-            tooltip: 'Concept Guide & Scoring Formulas',
-            icon: Icon(Icons.info_outline_rounded, color: theme.accentAmber, size: 20),
-            onPressed: _openActiveGuide,
-          ),
-
-          // Orientation Primer [?]
-          IconButton(
-            tooltip: 'Replay Orientation Primer',
-            icon: Icon(Icons.help_outline_rounded, color: theme.secondaryInk, size: 20),
-            onPressed: _showOnboarding,
-          ),
-
-          // Splash Screen [🎬]
-            if (widget.onReplaySplash != null)
-              IconButton(
-                tooltip: 'Preview Animated Splash',
-                icon: Icon(
-                  Icons.movie_filter_outlined,
-                  color: theme.secondaryInk,
-                  size: 20,
-                ),
-                onPressed: widget.onReplaySplash,
-              ),
-                ],
               ),
             ),
           ],
         ),
-    );
+      );
   }
 
   Widget _buildActiveDrill(AppThemeTokens theme) {
@@ -882,6 +966,8 @@ class _DraftingStudioScreenState extends State<DraftingStudioScreen> {
           theme: theme,
           gridStyle: _gridStyle,
           gridType: _gridType,
+          initialProject: _activeProject,
+          onProjectUpdated: (p) => setState(() => _activeProject = p),
         );
     }
   }

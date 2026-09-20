@@ -39,18 +39,47 @@ extension LineWeightTypeExt on LineWeightType {
   }
 }
 
-class Stroke { // For velocity/jitter kinematic heatmaps
-
+class Stroke {
   Stroke({
     required List<StrokePoint> points,
     required this.color,
     this.lineWeight = LineWeightType.crease,
     this.segmentColors,
   }) : points = List.unmodifiable(points);
+
+  /// Deserializes a [Stroke] from a JSON map.
+  factory Stroke.fromJson(Map<String, dynamic> json) {
+    final rawPoints = json['points'] as List<dynamic>? ?? <dynamic>[];
+    final pts = rawPoints
+        .whereType<Map<String, dynamic>>()
+        .map(StrokePoint.fromJson)
+        .toList();
+
+    final colorVal = (json['color'] as num?)?.toInt() ?? 0xFFFFFFFF;
+    final weightStr = json['weight'] as String? ?? 'crease';
+    final weight = LineWeightType.values.firstWhere(
+      (w) => w.name == weightStr,
+      orElse: () => LineWeightType.crease,
+    );
+
+    return Stroke(
+      points: pts,
+      color: Color(colorVal),
+      lineWeight: weight,
+    );
+  }
+
   final List<StrokePoint> points;
   final Color color;
   final LineWeightType lineWeight;
   final List<Color>? segmentColors;
+
+  /// Serializes to a JSON map.
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'points': points.map((p) => p.toJson()).toList(),
+        'color': color.value,
+        'weight': lineWeight.name,
+      };
 
   bool get isEmpty => points.isEmpty;
   int get length => points.length;
