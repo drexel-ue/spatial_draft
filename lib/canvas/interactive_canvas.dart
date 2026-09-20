@@ -17,6 +17,7 @@ class InteractiveCanvas extends StatefulWidget {
     this.gridStyle = GridStyle.solid,
     this.gridType = GridType.squareMetric,
     this.currentLineWeight = LineWeightType.crease,
+    this.currentBrushStyle = LineBrushStyle.ink,
     this.overrideInkColor,
     this.backgroundDrillOverlay,
     this.showHeatmap = false,
@@ -35,6 +36,7 @@ class InteractiveCanvas extends StatefulWidget {
   final GridStyle gridStyle;
   final GridType gridType;
   final LineWeightType currentLineWeight;
+  final LineBrushStyle currentBrushStyle;
   final Color? overrideInkColor;
   final Widget? backgroundDrillOverlay;
   final bool showHeatmap;
@@ -105,7 +107,8 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
     super.dispose();
   }
 
-  Color get _currentInkColor => widget.overrideInkColor ?? widget.theme.defaultInk;
+  Color get _currentInkColor =>
+      widget.overrideInkColor ?? widget.theme.defaultInk;
 
   void _handlePointerHover(PointerHoverEvent event) {
     if (event.kind == PointerDeviceKind.stylus ||
@@ -179,6 +182,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
         points: List.from(_activePoints),
         color: _currentInkColor,
         lineWeight: widget.currentLineWeight,
+        brushStyle: widget.currentBrushStyle,
         planeId: widget.activePlaneId,
         authoringScale: currentScale,
       );
@@ -205,6 +209,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
             points: _activePoints,
             color: _currentInkColor,
             lineWeight: widget.currentLineWeight,
+            brushStyle: widget.currentBrushStyle,
             planeId: widget.activePlaneId,
             authoringScale: currentScale,
           )

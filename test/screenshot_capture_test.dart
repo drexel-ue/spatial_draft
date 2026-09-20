@@ -758,5 +758,104 @@ void main() {
       await tester.pumpAndSettle();
       await captureScreen(tester, '19_infinite_zoom_bookmarks');
     });
+
+    testWidgets('20 3D Cinematic Storyboard Tour & Cel-Shading Palette Dock',
+        (tester) async {
+      tester.view.physicalSize = ipadMiniSize;
+      tester.view.devicePixelRatio = 1.5;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final waypoints = [
+        SpatialBookmark.waypoint3D(
+          id: 'kf1',
+          name: '1. Wide Inception Shot',
+          cameraYaw: 0.42,
+          cameraPitch: 0.18,
+          cameraDistance: 1050.0,
+        ),
+        SpatialBookmark.waypoint3D(
+          id: 'kf2',
+          name: '2. Dynamic Character Parallax',
+          cameraYaw: 0.88,
+          cameraPitch: 0.26,
+          cameraDistance: 780.0,
+        ),
+        SpatialBookmark.waypoint3D(
+          id: 'kf3',
+          name: '3. Apex Monument Flyby',
+          cameraYaw: -0.52,
+          cameraPitch: -0.15,
+          cameraDistance: 1250.0,
+        ),
+      ];
+
+      final tourProject = SpatialProject(
+        id: 'proj_3d_tour',
+        title: 'Ninja Inception Parallax',
+        mode: SandboxMode.mentalCanvas3D,
+        cameraYaw: 0.42,
+        cameraPitch: 0.18,
+        cameraDistance: 1050.0,
+        planes: [
+          CanvasPlane3D.primaryFront(),
+          CanvasPlane3D.groundFloor(),
+          CanvasPlane3D.backdrop(),
+        ],
+        strokes: [
+          // Crisp ink contour
+          Stroke(
+            points: [
+              const StrokePoint(
+                position: Offset(1800, 1900),
+                pressure: 0.7,
+                timestampMicros: 0,
+              ),
+              const StrokePoint(
+                position: Offset(2200, 1900),
+                pressure: 0.9,
+                timestampMicros: 0,
+              ),
+            ],
+            color: const Color(0xFF38BDF8),
+            brushStyle: LineBrushStyle.ink,
+            planeId: 'plane_primary',
+          ),
+          // Cel-shading wash aura
+          Stroke(
+            points: [
+              const StrokePoint(
+                position: Offset(1850, 1950),
+                pressure: 0.6,
+                timestampMicros: 0,
+              ),
+              const StrokePoint(
+                position: Offset(2150, 1950),
+                pressure: 0.8,
+                timestampMicros: 0,
+              ),
+            ],
+            color: const Color(0xFFEF4444),
+            brushStyle: LineBrushStyle.wash,
+            planeId: 'plane_primary',
+          ),
+        ],
+        bookmarks: waypoints,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        buildTestScreen(
+          FreeformSandbox(
+            theme: AppThemeTokens.dark(),
+            gridStyle: GridStyle.solid,
+            gridType: GridType.squareMetric,
+            initialProject: tourProject,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await captureScreen(tester, '20_cinematic_tour_dock');
+    });
   });
 }

@@ -14,6 +14,10 @@ class Interactive3dHtmlExporter {
     final strokesJson = jsonEncode(
       project.strokes.map((s) => s.toJson()).toList(),
     );
+    final waypoints3D = project.bookmarks.where((b) => b.is3D).toList();
+    final waypointsJson = jsonEncode(
+      waypoints3D.map((b) => b.toJson()).toList(),
+    );
     final initYaw = project.cameraYaw;
     final initPitch = project.cameraPitch;
     final initDist = project.cameraDistance;
@@ -111,6 +115,9 @@ class Interactive3dHtmlExporter {
 <canvas id="canvas"></canvas>
 
 <div class="dock-bottom">
+  <button id="tourBtn" class="btn" style="display: none;">
+    ▶ Storyboard Tour
+  </button>
   <button id="spinBtn" class="btn">Auto Spin</button>
   <button id="resetBtn" class="btn">Reset Camera</button>
   <span id="stats" class="stats">Yaw: 0° | Pitch: 0°</span>
@@ -119,17 +126,28 @@ class Interactive3dHtmlExporter {
 <script>
   const planes = $planesJson;
   const strokes = $strokesJson;
+  const waypoints = $waypointsJson;
 
   let cameraYaw = $initYaw;
   let cameraPitch = $initPitch;
   let cameraDist = $initDist;
   let isSpinning = false;
+  let isTouring = false;
+  let tourIndex = 0;
+  let tourStartTime = 0;
+  let tourStart = { yaw: 0, pitch: 0, dist: 900 };
+  let tourTarget = { diffYaw: 0, pitch: 0, dist: 0 };
 
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
   const stats = document.getElementById('stats');
   const spinBtn = document.getElementById('spinBtn');
   const resetBtn = document.getElementById('resetBtn');
+  const tourBtn = document.getElementById('tourBtn');
+
+  if (waypoints && waypoints.length >= 2) {
+    tourBtn.style.display = 'inline-block';
+  }
 
   function resize() {
     canvas.width = window.innerWidth * window.devicePixelRatio;
@@ -247,11 +265,15 @@ class Interactive3dHtmlExporter {
       }
       const c = stroke.color || 0xffffffff;
       const hex = '#' + (c & 0xffffff).toString(16).padStart(6, '0');
+      const isWash = stroke.brushStyle === 'wash';
+      const baseWidth = stroke.lineWeight === 'silhouette' ? 3.0 : 1.8;
       ctx.strokeStyle = hex;
-      ctx.lineWidth = (stroke.lineWeight === 'silhouette' ? 3.0 : 1.8) * dpr;
+      ctx.lineWidth = (isWash ? baseWidth * 3.2 : baseWidth) * dpr;
+      ctx.globalAlpha = isWash ? 0.35 : 1.0;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.stroke();
+      ctx.globalAlpha = 1.0;
     }
 
     const yDeg = Math.round((cameraYaw * 180 / Math.PI) % 360);
@@ -307,6 +329,58 @@ class Interactive3dHtmlExporter {
     cameraDist = $initDist;
     render();
   });
+
+  tourBtn.addEventListener('click', () => {
+    isTouring = !isTouring;
+    tourBtn.classList.toggle('active', isTouring);
+    tourBtn.textContent = isTouring ? '⏸ Pause Tour' : '▶ Storyboard Tour';
+    if (isTouring) {
+      if (isSpinning) {
+        isSpinning = false;
+        spinBtn.classList.remove('active');
+      }
+      tourIndex = 0;
+      startNextTourSegment();
+    }
+  });
+
+  function startNextTourSegment() {
+    if (!isTouring || !waypoints || waypoints.length === 0) return;
+    const wp = waypoints[tourIndex];
+    tourStart = { yaw: cameraYaw, pitch: cameraPitch, dist: cameraDist };
+    const targetYaw = wp.cameraYaw || 0;
+    const diffYaw =
+      ((targetYaw - tourStart.yaw + Math.PI) % (2 * Math.PI)) - Math.PI;
+    tourTarget = {
+      diffYaw: diffYaw,
+      pitch: (wp.cameraPitch || 0) - tourStart.pitch,
+      dist: (wp.cameraDistance || 900) - tourStart.dist
+    };
+    tourStartTime = performance.now();
+    requestAnimationFrame(tourLoop);
+  }
+
+  function tourLoop(now) {
+    if (!isTouring) return;
+    const elapsed = now - tourStartTime;
+    const duration = 1800;
+    const t = Math.min(1.0, elapsed / duration);
+    const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    cameraYaw = tourStart.yaw + tourTarget.diffYaw * ease;
+    cameraPitch = tourStart.pitch + tourTarget.pitch * ease;
+    cameraDist = tourStart.dist + tourTarget.dist * ease;
+    render();
+
+    if (t < 1.0) {
+      requestAnimationFrame(tourLoop);
+    } else {
+      tourIndex = (tourIndex + 1) % waypoints.length;
+      setTimeout(() => {
+        if (isTouring) startNextTourSegment();
+      }, 500);
+    }
+  }
 
   resize();
 </script>

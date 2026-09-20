@@ -31,11 +31,19 @@ class InkLayerPainter extends CustomPainter {
   void _paintStroke(Canvas canvas, Stroke stroke) {
     if (stroke.points.isEmpty) return;
 
-    final baseWidth = stroke.lineWeight.baseWidth;
-    final strokeColor = stroke.color;
+    final baseWidth = stroke.lineWeight.baseWidth *
+        stroke.brushStyle.widthMultiplier;
+    final strokeColor = stroke.color.withOpacity(
+      (stroke.color.opacity * stroke.brushStyle.opacityMultiplier).clamp(
+        0.0,
+        1.0,
+      ),
+    );
 
     // If heatmapped (e.g. from ghosting analysis)
-    if (showHeatmap && stroke.segmentColors != null && stroke.segmentColors!.length >= stroke.points.length) {
+    if (showHeatmap &&
+        stroke.segmentColors != null &&
+        stroke.segmentColors!.length >= stroke.points.length) {
       _paintHeatmappedStroke(canvas, stroke);
       return;
     }

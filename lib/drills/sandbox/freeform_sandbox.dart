@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:spatial_draft/canvas/common/color_palette_dock.dart';
 import 'package:spatial_draft/canvas/infinite_zoom/infinite_zoom_hud.dart';
 import 'package:spatial_draft/canvas/interactive_canvas.dart';
 import 'package:spatial_draft/canvas/mental_canvas/mental_canvas_viewport.dart';
@@ -41,10 +43,14 @@ class _FreeformSandboxState extends State<FreeformSandbox>
   late SpatialProject _project;
   final List<Stroke> _strokes = [];
   LineWeightType _currentWeight = LineWeightType.crease;
+  Color? _activeColor;
+  LineBrushStyle _activeBrushStyle = LineBrushStyle.ink;
   bool _showTooltip = true;
 
   late final TransformationController _zoomController;
   AnimationController? _flyThroughController;
+  AnimationController? _tour3DController;
+  bool _isPlaying3DTour = false;
   double _zoomScale = 1.0;
 
   @override
@@ -58,6 +64,7 @@ class _FreeformSandboxState extends State<FreeformSandbox>
   @override
   void dispose() {
     _flyThroughController?.dispose();
+    _tour3DController?.dispose();
     _zoomController.removeListener(_onZoomTransformUpdated);
     _zoomController.dispose();
     super.dispose();
@@ -340,6 +347,210 @@ class _FreeformSandboxState extends State<FreeformSandbox>
     }
   }
 
+  Future<void> _create3DBookmark() async {
+    final waypoints3D = _project.bookmarks.where((b) => b.is3D).toList();
+    final nextNum = waypoints3D.length + 1;
+    final name = await RenameProjectDialog.show(
+      context: context,
+      currentTitle: 'Keyframe #$nextNum',
+      theme: widget.theme,
+      dialogTitle: 'Save 3D Camera Keyframe',
+    );
+    if (name != null && name.trim().isNotEmpty) {
+      final bookmark = SpatialBookmark.waypoint3D(
+        id: 'bm_3d_${DateTime.now().microsecondsSinceEpoch}',
+        name: name.trim(),
+        cameraYaw: _project.cameraYaw,
+        cameraPitch: _project.cameraPitch,
+        cameraDistance: _project.cameraDistance,
+        targetPlaneId: _project.activePlaneId,
+        createdAt: DateTime.now(),
+      );
+
+      setState(() {
+        final updated = List<SpatialBookmark>.from(_project.bookmarks)
+          ..add(bookmark);
+        _project = _project.copyWith(bookmarks: updated);
+      });
+      _persistChanges();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Saved 3D keyframe "${bookmark.name}"'),
+            backgroundColor: widget.theme.accentAmber,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  void _animateTo3DBookmark(SpatialBookmark bookmark) {
+    _flyThroughController?.stop();
+    _flyThroughController?.dispose();
+    _tour3DController?.stop();
+    _tour3DController?.dispose();
+
+    final startYaw = _project.cameraYaw;
+    final startPitch = _project.cameraPitch;
+    final startDist = _project.cameraDistance;
+
+    final targetYaw = bookmark.cameraYaw ?? 0.0;
+    final targetPitch = bookmark.cameraPitch ?? 0.0;
+    final targetDist = bookmark.cameraDistance ?? 900.0;
+
+    final diffYaw =
+        ((targetYaw - startYaw + math.pi) % (2 * math.pi)) - math.pi;
+    final diffPitch = targetPitch - startPitch;
+    final diffDist = targetDist - startDist;
+
+    final controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+    _tour3DController = controller;
+
+    final curved = CurvedAnimation(
+      parent: controller,
+      curve: Curves.easeInOutCubic,
+    );
+
+    curved.addListener(() {
+      final t = curved.value;
+      if (mounted) {
+        setState(() {
+          _project = _project.copyWith(
+            cameraYaw: startYaw + diffYaw * t,
+            cameraPitch: (startPitch + diffPitch * t).clamp(
+              -math.pi / 2.5,
+              math.pi / 2.5,
+            ),
+            cameraDistance: startDist + diffDist * t,
+            activePlaneId: bookmark.targetPlaneId ?? _project.activePlaneId,
+          );
+        });
+      }
+    });
+
+    controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _persistChanges();
+      }
+    });
+
+    controller.forward();
+  }
+
+  Future<void> _playCinematicTour() async {
+    if (_isPlaying3DTour) {
+      _stopCinematicTour();
+      return;
+    }
+
+    final waypoints = _project.bookmarks.where((b) => b.is3D).toList();
+    if (waypoints.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Need at least 2 camera keyframes to play cinematic tour',
+          ),
+          backgroundColor: widget.theme.accentAmber,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isPlaying3DTour = true;
+    });
+
+    for (int i = 0; i < waypoints.length; i++) {
+      if (!_isPlaying3DTour || !mounted) break;
+      await _animateTo3DBookmarkFuture(waypoints[i]);
+      if (!_isPlaying3DTour || !mounted) break;
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+    }
+
+    if (mounted) {
+      setState(() {
+        _isPlaying3DTour = false;
+      });
+    }
+  }
+
+  Future<void> _animateTo3DBookmarkFuture(SpatialBookmark bookmark) {
+    final completer = Completer<void>();
+    _tour3DController?.stop();
+    _tour3DController?.dispose();
+
+    final startYaw = _project.cameraYaw;
+    final startPitch = _project.cameraPitch;
+    final startDist = _project.cameraDistance;
+
+    final targetYaw = bookmark.cameraYaw ?? 0.0;
+    final targetPitch = bookmark.cameraPitch ?? 0.0;
+    final targetDist = bookmark.cameraDistance ?? 900.0;
+
+    final diffYaw =
+        ((targetYaw - startYaw + math.pi) % (2 * math.pi)) - math.pi;
+    final diffPitch = targetPitch - startPitch;
+    final diffDist = targetDist - startDist;
+
+    final controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
+    _tour3DController = controller;
+
+    final curved = CurvedAnimation(
+      parent: controller,
+      curve: Curves.easeInOutCubic,
+    );
+
+    curved.addListener(() {
+      final t = curved.value;
+      if (mounted) {
+        setState(() {
+          _project = _project.copyWith(
+            cameraYaw: startYaw + diffYaw * t,
+            cameraPitch: (startPitch + diffPitch * t).clamp(
+              -math.pi / 2.5,
+              math.pi / 2.5,
+            ),
+            cameraDistance: startDist + diffDist * t,
+            activePlaneId: bookmark.targetPlaneId ?? _project.activePlaneId,
+          );
+        });
+      }
+    });
+
+    controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      }
+    });
+
+    controller.forward();
+    return completer.future;
+  }
+
+  void _stopCinematicTour() {
+    _tour3DController?.stop();
+    _tour3DController?.dispose();
+    _tour3DController = null;
+    if (mounted) {
+      setState(() {
+        _isPlaying3DTour = false;
+      });
+    }
+  }
+
   void _faceActivePlane() {
     final plane = _project.activePlane;
     setState(() {
@@ -455,6 +666,8 @@ class _FreeformSandboxState extends State<FreeformSandbox>
           activePlaneId: _project.activePlaneId,
           strokes: _strokes,
           currentLineWeight: _currentWeight,
+          currentBrushStyle: _activeBrushStyle,
+          overrideInkColor: _activeColor,
           cameraYaw: _project.cameraYaw,
           cameraPitch: _project.cameraPitch,
           cameraDistance: _project.cameraDistance,
@@ -478,6 +691,8 @@ class _FreeformSandboxState extends State<FreeformSandbox>
           gridStyle: widget.gridStyle,
           gridType: widget.gridType,
           currentLineWeight: _currentWeight,
+          currentBrushStyle: _activeBrushStyle,
+          overrideInkColor: _activeColor,
           strokes: _strokes,
           isInfiniteZoom: true,
           transformationController: _zoomController,
@@ -497,6 +712,8 @@ class _FreeformSandboxState extends State<FreeformSandbox>
           gridStyle: widget.gridStyle,
           gridType: widget.gridType,
           currentLineWeight: _currentWeight,
+          currentBrushStyle: _activeBrushStyle,
+          overrideInkColor: _activeColor,
           strokes: _strokes,
           isInfiniteZoom: false,
           activePlaneId: _project.activePlaneId,
@@ -606,9 +823,34 @@ class _FreeformSandboxState extends State<FreeformSandbox>
                   _persistChanges();
                 },
                 onEditPlane: _openPlaneTransformSheet,
+                bookmarks: _project.bookmarks,
+                onSelectBookmark: _animateTo3DBookmark,
+                onAddBookmark: _create3DBookmark,
+                onPlayTour: _playCinematicTour,
+                isPlayingTour: _isPlaying3DTour,
               ),
             ),
           ),
+
+        // Color Swatches & Brush Style Dock
+        Positioned(
+          bottom: _project.mode == SandboxMode.mentalCanvas3D ||
+                  _project.mode == SandboxMode.infiniteZoom
+              ? 154
+              : 96,
+          left: 24,
+          right: 24,
+          child: Center(
+            child: ColorPaletteDock(
+              theme: theme,
+              selectedColor: _activeColor ?? theme.defaultInk,
+              onColorSelected: (c) => setState(() => _activeColor = c),
+              selectedBrushStyle: _activeBrushStyle,
+              onBrushStyleChanged: (b) =>
+                  setState(() => _activeBrushStyle = b),
+            ),
+          ),
+        ),
 
         // Bottom Line Weight Bar & Canvas Tools
         Positioned(

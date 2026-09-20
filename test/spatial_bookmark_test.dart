@@ -86,6 +86,49 @@ void main() {
       expect(restored.bookmarks[1].zoomScale, equals(500.0));
     });
 
+    test('SpatialBookmark.waypoint3D creates, serializes, and verifies 3D', () {
+      final waypoint = SpatialBookmark.waypoint3D(
+        id: 'bm_3d_test',
+        name: 'Hokage Monument Vantage',
+        cameraYaw: 0.785,
+        cameraPitch: 0.261,
+        cameraDistance: 1100.0,
+        targetPlaneId: 'plane_monument',
+      );
+
+      expect(waypoint.is3D, isTrue);
+      expect(waypoint.cameraYaw, equals(0.785));
+      expect(waypoint.cameraPitch, equals(0.261));
+      expect(waypoint.cameraDistance, equals(1100.0));
+      expect(waypoint.targetPlaneId, equals('plane_monument'));
+
+      final json = waypoint.toJson();
+      expect(json['cameraYaw'], equals(0.785));
+      expect(json['cameraPitch'], equals(0.261));
+      expect(json['cameraDistance'], equals(1100.0));
+      expect(json['targetPlaneId'], equals('plane_monument'));
+
+      final restored = SpatialBookmark.fromJson(json);
+      expect(restored.is3D, isTrue);
+      expect(restored.cameraYaw, equals(0.785));
+      expect(restored.targetPlaneId, equals('plane_monument'));
+    });
+
+    test('Shortest-arc spherical yaw interpolation prevents 350-degree flips',
+        () {
+      // Crossing +/- pi boundary: start at 3.10 rad, target at -3.10 rad
+      const startYaw = 3.10;
+      const targetYaw = -3.10;
+
+      // Direct subtraction gives -6.20 rad (unwanted full circle flip)
+      // Shortest arc formula: ((target - start + pi) % (2*pi)) - pi
+      const diff =
+          ((targetYaw - startYaw + math.pi) % (2 * math.pi)) - math.pi;
+
+      // The true short distance across the boundary is approx +0.083 radians
+      expect(diff, closeTo(0.083, 0.01));
+    });
+
     test('Logarithmic zoom interpolation produces uniform perceptual velocity',
         () {
       const s0 = 1.0;

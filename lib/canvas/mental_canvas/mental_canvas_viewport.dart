@@ -18,6 +18,7 @@ class MentalCanvasViewport extends StatefulWidget {
     required this.activePlaneId,
     required this.strokes,
     this.currentLineWeight = LineWeightType.crease,
+    this.currentBrushStyle = LineBrushStyle.ink,
     this.overrideInkColor,
     required this.cameraYaw,
     required this.cameraPitch,
@@ -40,6 +41,9 @@ class MentalCanvasViewport extends StatefulWidget {
 
   /// Active line weight.
   final LineWeightType currentLineWeight;
+
+  /// Active brush style (ink outline vs. cel wash).
+  final LineBrushStyle currentBrushStyle;
 
   /// Optional ink color override.
   final Color? overrideInkColor;
@@ -242,6 +246,7 @@ class _MentalCanvasViewportState extends State<MentalCanvasViewport> {
         points: List.from(_activePoints),
         color: _inkColor,
         lineWeight: widget.currentLineWeight,
+        brushStyle: widget.currentBrushStyle,
         planeId: _activePlane.id,
       );
       widget.onStrokeCompleted(stroke);
@@ -265,6 +270,7 @@ class _MentalCanvasViewportState extends State<MentalCanvasViewport> {
                 points: _activePoints,
                 color: _inkColor,
                 lineWeight: widget.currentLineWeight,
+                brushStyle: widget.currentBrushStyle,
                 planeId: _activePlane.id,
               )
             : null;

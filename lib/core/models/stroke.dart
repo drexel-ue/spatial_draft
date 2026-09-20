@@ -39,11 +39,50 @@ extension LineWeightTypeExt on LineWeightType {
   }
 }
 
+/// Brush style for artistic shading or technical ink.
+enum LineBrushStyle {
+  /// Opaque, crisp outline stroke for structural drafting.
+  ink,
+
+  /// Translucent soft wash stroke for cel-shading, lighting, and auras.
+  wash,
+}
+
+extension LineBrushStyleExt on LineBrushStyle {
+  String get label {
+    switch (this) {
+      case LineBrushStyle.ink:
+        return 'Ink Outline';
+      case LineBrushStyle.wash:
+        return 'Cel Wash';
+    }
+  }
+
+  double get opacityMultiplier {
+    switch (this) {
+      case LineBrushStyle.ink:
+        return 1.0;
+      case LineBrushStyle.wash:
+        return 0.35;
+    }
+  }
+
+  double get widthMultiplier {
+    switch (this) {
+      case LineBrushStyle.ink:
+        return 1.0;
+      case LineBrushStyle.wash:
+        return 3.2;
+    }
+  }
+}
+
 class Stroke {
   Stroke({
     required List<StrokePoint> points,
     required this.color,
     this.lineWeight = LineWeightType.crease,
+    this.brushStyle = LineBrushStyle.ink,
     this.segmentColors,
     this.planeId = 'plane_primary',
     this.authoringScale = 1.0,
@@ -63,6 +102,11 @@ class Stroke {
       (w) => w.name == weightStr,
       orElse: () => LineWeightType.crease,
     );
+    final brushStr = json['brushStyle'] as String? ?? 'ink';
+    final brush = LineBrushStyle.values.firstWhere(
+      (b) => b.name == brushStr,
+      orElse: () => LineBrushStyle.ink,
+    );
     final plane = json['planeId'] as String? ?? 'plane_primary';
     final scale = (json['authoringScale'] as num?)?.toDouble() ?? 1.0;
 
@@ -70,6 +114,7 @@ class Stroke {
       points: pts,
       color: Color(colorVal),
       lineWeight: weight,
+      brushStyle: brush,
       planeId: plane,
       authoringScale: scale,
     );
@@ -78,6 +123,7 @@ class Stroke {
   final List<StrokePoint> points;
   final Color color;
   final LineWeightType lineWeight;
+  final LineBrushStyle brushStyle;
   final List<Color>? segmentColors;
 
   /// The 3D spatial canvas plane this stroke resides on.
@@ -91,6 +137,7 @@ class Stroke {
     List<StrokePoint>? points,
     Color? color,
     LineWeightType? lineWeight,
+    LineBrushStyle? brushStyle,
     List<Color>? segmentColors,
     String? planeId,
     double? authoringScale,
@@ -99,6 +146,7 @@ class Stroke {
       points: points ?? this.points,
       color: color ?? this.color,
       lineWeight: lineWeight ?? this.lineWeight,
+      brushStyle: brushStyle ?? this.brushStyle,
       segmentColors: segmentColors ?? this.segmentColors,
       planeId: planeId ?? this.planeId,
       authoringScale: authoringScale ?? this.authoringScale,
@@ -110,6 +158,7 @@ class Stroke {
         'points': points.map((p) => p.toJson()).toList(),
         'color': color.value,
         'weight': lineWeight.name,
+        'brushStyle': brushStyle.name,
         'planeId': planeId,
         'authoringScale': authoringScale,
       };

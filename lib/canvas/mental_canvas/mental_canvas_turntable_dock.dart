@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:spatial_draft/core/models/canvas_plane_3d.dart';
+import 'package:spatial_draft/core/models/spatial_bookmark.dart';
 import 'package:spatial_draft/core/theme/app_theme.dart';
 
 /// Floating control dock for 3D Mental Canvas orbital camera & plane switching.
@@ -19,6 +20,11 @@ class MentalCanvasTurntableDock extends StatelessWidget {
     required this.onSnapToPlane,
     required this.onResetOrbit,
     this.onEditPlane,
+    this.bookmarks = const [],
+    this.onSelectBookmark,
+    this.onAddBookmark,
+    this.onPlayTour,
+    this.isPlayingTour = false,
   });
 
   /// Design tokens.
@@ -54,6 +60,21 @@ class MentalCanvasTurntableDock extends StatelessWidget {
   /// Optional callback to open plane transformation editor.
   final VoidCallback? onEditPlane;
 
+  /// Spatial bookmarks / 3D camera waypoints.
+  final List<SpatialBookmark> bookmarks;
+
+  /// Callback when a 3D bookmark is selected.
+  final ValueChanged<SpatialBookmark>? onSelectBookmark;
+
+  /// Callback to record a new 3D camera keyframe bookmark.
+  final VoidCallback? onAddBookmark;
+
+  /// Callback to play or pause cinematic tour.
+  final VoidCallback? onPlayTour;
+
+  /// Whether cinematic tour is currently playing.
+  final bool isPlayingTour;
+
   CanvasPlane3D get _activePlane {
     return planes.firstWhere(
       (p) => p.id == activePlaneId,
@@ -79,11 +100,12 @@ class MentalCanvasTurntableDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final waypoints3D = bookmarks.where((b) => b.is3D).toList();
     final yawDeg = (cameraYaw * 180.0 / math.pi) % 360;
     final pitchDeg = cameraPitch * 180.0 / math.pi;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: theme.surfaceGlass,
         borderRadius: BorderRadius.circular(16),
@@ -96,41 +118,46 @@ class MentalCanvasTurntableDock extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Active Plane Selector Dropdown Menu
-          PopupMenuButton<String>(
-            tooltip: 'Active Sketching Plane',
-            onSelected: (val) {
-              if (val.startsWith('add_')) {
-                _handleAddTemplate(val);
-              } else {
-                onSelectPlane(val);
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: theme.borderHighlight.withOpacity(0.16),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: theme.borderHighlight.withOpacity(0.4),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Active Plane Selector Dropdown Menu
+            PopupMenuButton<String>(
+              tooltip: 'Active Sketching Plane',
+              onSelected: (val) {
+                if (val.startsWith('add_')) {
+                  _handleAddTemplate(val);
+                } else {
+                  onSelectPlane(val);
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 5,
                 ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.view_in_ar_rounded,
-                    size: 15,
-                    color: theme.borderHighlight,
+                decoration: BoxDecoration(
+                  color: theme.borderHighlight.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: theme.borderHighlight.withOpacity(0.4),
                   ),
-                  const SizedBox(width: 6),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 140),
-                    child: Text(
-                      _activePlane.name,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.view_in_ar_rounded,
+                      size: 15,
+                      color: theme.borderHighlight,
+                    ),
+                    const SizedBox(width: 4),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 100),
+                      child: Text(
+                        _activePlane.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.monoStyle.copyWith(
@@ -336,10 +363,126 @@ class MentalCanvasTurntableDock extends StatelessWidget {
             ),
             onPressed: onResetOrbit,
           ),
+
+          // Storyboard Keyframes & Tour Playback
+          if (onAddBookmark != null || waypoints3D.isNotEmpty) ...[
+            const SizedBox(width: 4),
+            Container(width: 1, height: 20, color: theme.borderSubtle),
+            const SizedBox(width: 6),
+          ],
+
+          if (waypoints3D.isNotEmpty)
+            PopupMenuButton<SpatialBookmark>(
+              tooltip: 'Storyboard Keyframes (${waypoints3D.length})',
+              onSelected: (bm) => onSelectBookmark?.call(bm),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.accentAmber.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: theme.accentAmber.withOpacity(0.4),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.movie_creation_outlined,
+                      size: 14,
+                      color: theme.accentAmber,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${waypoints3D.length}',
+                      style: theme.monoStyle.copyWith(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: theme.accentAmber,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.arrow_drop_down_rounded,
+                      size: 16,
+                      color: theme.secondaryInk,
+                    ),
+                  ],
+                ),
+              ),
+              itemBuilder: (ctx) => [
+                ...waypoints3D.map((bm) {
+                  return PopupMenuItem<SpatialBookmark>(
+                    value: bm,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.videocam_rounded,
+                          size: 16,
+                          color: theme.accentAmber,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            bm.name,
+                            style: theme.bodyStyle.copyWith(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
+
+          if (onAddBookmark != null) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              tooltip: 'Add 3D Camera Keyframe',
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.all(4),
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              icon: Icon(
+                Icons.bookmark_add_rounded,
+                size: 17,
+                color: theme.accentAmber,
+              ),
+              onPressed: onAddBookmark,
+            ),
+          ],
+
+          if (onPlayTour != null && waypoints3D.length >= 2) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              tooltip: isPlayingTour
+                  ? 'Pause Cinematic Tour'
+                  : 'Play 3D Cinematic Tour',
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.all(4),
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              icon: Icon(
+                isPlayingTour
+                    ? Icons.pause_circle_filled_rounded
+                    : Icons.play_circle_filled_rounded,
+                size: 19,
+                color: isPlayingTour
+                    ? theme.accentAmber
+                    : theme.borderHighlight,
+              ),
+              onPressed: onPlayTour,
+            ),
+          ],
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _handleAddTemplate(String val) {
     switch (val) {

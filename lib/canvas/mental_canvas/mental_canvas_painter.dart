@@ -260,10 +260,14 @@ class MentalCanvasPainter extends CustomPainter {
       3.0,
     );
 
-    final strokeWidth = stroke.lineWeight.baseWidth * depthFactor;
-    final baseOpacity = isActive
+    final strokeWidth = stroke.lineWeight.baseWidth *
+        depthFactor *
+        stroke.brushStyle.widthMultiplier;
+    final rawBaseOpacity = isActive
         ? stroke.color.opacity
         : stroke.color.opacity * 0.55;
+    final baseOpacity =
+        rawBaseOpacity * stroke.brushStyle.opacityMultiplier;
     final opacity = (baseOpacity * plane.opacity).clamp(0.0, 1.0);
 
     final paint = Paint()
