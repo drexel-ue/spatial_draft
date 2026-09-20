@@ -112,6 +112,7 @@ class MentalCanvasPainter extends CustomPainter {
     });
 
     for (final plane in sortedPlanes) {
+      if (!plane.isVisible) continue;
       final isActive = plane.id == activePlaneId;
 
       // 1. Draw Plane 3D Boundary & Grid
@@ -204,7 +205,12 @@ class MentalCanvasPainter extends CustomPainter {
         final v = -hh + plane.height * t;
         final left3 = plane.project2Dto3D(Offset(-hw, v));
         final right3 = plane.project2Dto3D(Offset(hw, v));
-        final pLeft = projectWorldToScreen(left3[0], left3[1], left3[2], center);
+        final pLeft = projectWorldToScreen(
+          left3[0],
+          left3[1],
+          left3[2],
+          center,
+        );
         final pRight = projectWorldToScreen(
           right3[0],
           right3[1],
@@ -230,7 +236,7 @@ class MentalCanvasPainter extends CustomPainter {
     // Map 2D stroke points to 3D world, then project to screen
     final screenPoints = <Offset>[];
     for (final pt in stroke.points) {
-      // Stroke points are authored on a 4000x4000 canvas centered at (2000, 2000)
+      // Points authored on 4000x4000 canvas centered at (2000, 2000)
       final u = pt.position.dx - 2000.0;
       final v = pt.position.dy - 2000.0;
 
@@ -255,7 +261,10 @@ class MentalCanvasPainter extends CustomPainter {
     );
 
     final strokeWidth = stroke.lineWeight.baseWidth * depthFactor;
-    final opacity = isActive ? stroke.color.opacity : stroke.color.opacity * 0.55;
+    final baseOpacity = isActive
+        ? stroke.color.opacity
+        : stroke.color.opacity * 0.55;
+    final opacity = (baseOpacity * plane.opacity).clamp(0.0, 1.0);
 
     final paint = Paint()
       ..color = stroke.color.withOpacity(opacity)

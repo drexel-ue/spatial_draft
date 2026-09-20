@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spatial_draft/core/models/spatial_bookmark.dart';
 import 'package:spatial_draft/core/theme/app_theme.dart';
 
 /// Floating HUD dock displaying metric scale bar and logarithmic zoom controls.
@@ -11,6 +12,9 @@ class InfiniteZoomHud extends StatelessWidget {
     required this.onZoomPresetSelected,
     required this.onZoomStep,
     required this.onResetZoom,
+    this.bookmarks = const <SpatialBookmark>[],
+    this.onSelectBookmark,
+    this.onAddBookmark,
   });
 
   /// Design theme tokens.
@@ -27,6 +31,15 @@ class InfiniteZoomHud extends StatelessWidget {
 
   /// Callback to reset scale to 1.0.
   final VoidCallback onResetZoom;
+
+  /// Saved scale bookmarks in document.
+  final List<SpatialBookmark> bookmarks;
+
+  /// Callback when a bookmark waypoint is selected.
+  final ValueChanged<SpatialBookmark>? onSelectBookmark;
+
+  /// Callback when user taps "+ Bookmark" button.
+  final VoidCallback? onAddBookmark;
 
   /// Computes human-friendly metric scale label (km -> m -> cm -> mm -> um).
   static String formatMetricScale(double scale) {
@@ -193,6 +206,92 @@ class InfiniteZoomHud extends StatelessWidget {
               color: theme.defaultInk,
             ),
             onPressed: () => onZoomStep(2.0),
+          ),
+
+          const SizedBox(width: 6),
+          Container(
+            width: 1,
+            height: 24,
+            color: theme.borderSubtle,
+          ),
+          const SizedBox(width: 6),
+
+          // Waypoints dropdown (if any exist)
+          if (bookmarks.isNotEmpty)
+            PopupMenuButton<SpatialBookmark>(
+              tooltip: 'Saved Scale Waypoints',
+              onSelected: onSelectBookmark,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                decoration: BoxDecoration(
+                  color: theme.accentAmber.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: theme.accentAmber.withOpacity(0.4),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.bookmark_added_rounded,
+                      size: 13,
+                      color: theme.accentAmber,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${bookmarks.length}',
+                      style: theme.monoStyle.copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: theme.accentAmber,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              itemBuilder: (ctx) => bookmarks.map((b) {
+                return PopupMenuItem<SpatialBookmark>(
+                  value: b,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_rounded,
+                        size: 15,
+                        color: theme.accentAmber,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          b.name,
+                          style: theme.bodyStyle.copyWith(fontSize: 12),
+                        ),
+                      ),
+                      Text(
+                        formatMagnification(b.zoomScale),
+                        style: theme.monoStyle.copyWith(
+                          fontSize: 10,
+                          color: theme.secondaryInk,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+
+          // Add Bookmark Button
+          IconButton(
+            tooltip: 'Bookmark Current Scale (Waypoint)',
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            icon: Icon(
+              Icons.bookmark_add_outlined,
+              size: 16,
+              color: theme.accentAmber,
+            ),
+            onPressed: onAddBookmark,
           ),
         ],
       ),

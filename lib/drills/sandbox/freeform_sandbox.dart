@@ -2,9 +2,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:spatial_draft/canvas/infinite_zoom/infinite_zoom_hud.dart';
 import 'package:spatial_draft/canvas/interactive_canvas.dart';
-import 'package:spatial_draft/canvas/mental_canvas/mental_canvas_turntable_dock.dart';
 import 'package:spatial_draft/canvas/mental_canvas/mental_canvas_viewport.dart';
+import 'package:spatial_draft/canvas/mental_canvas/plane_transform_sheet.dart';
 import 'package:spatial_draft/core/models/canvas_plane_3d.dart';
+import 'package:spatial_draft/core/models/spatial_bookmark.dart';
 import 'package:spatial_draft/core/models/spatial_project.dart';
 import 'package:spatial_draft/core/models/stroke.dart';
 import 'package:spatial_draft/core/theme/app_theme.dart';
@@ -13,6 +14,7 @@ import 'package:spatial_draft/drills/common/coachmark_tooltip.dart';
 import 'package:spatial_draft/drills/common/concept_guide_sheet.dart';
 import 'package:spatial_draft/services/project_service.dart';
 import 'package:spatial_draft/views/gallery/project_export_dialog.dart';
+import '../../canvas/mental_canvas/mental_canvas_turntable_dock.dart';
 
 class FreeformSandbox extends StatefulWidget {
   const FreeformSandbox({
@@ -34,13 +36,15 @@ class FreeformSandbox extends StatefulWidget {
   State<FreeformSandbox> createState() => _FreeformSandboxState();
 }
 
-class _FreeformSandboxState extends State<FreeformSandbox> {
+class _FreeformSandboxState extends State<FreeformSandbox>
+    with TickerProviderStateMixin {
   late SpatialProject _project;
   final List<Stroke> _strokes = [];
   LineWeightType _currentWeight = LineWeightType.crease;
   bool _showTooltip = true;
 
   late final TransformationController _zoomController;
+  AnimationController? _flyThroughController;
   double _zoomScale = 1.0;
 
   @override
@@ -53,6 +57,7 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
 
   @override
   void dispose() {
+    _flyThroughController?.dispose();
     _zoomController.removeListener(_onZoomTransformUpdated);
     _zoomController.dispose();
     super.dispose();
@@ -82,6 +87,15 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
     }
     _strokes.clear();
     _strokes.addAll(_project.strokes);
+    if (_project.zoomScale > 0 &&
+        (_project.panOffsetX != 0.0 ||
+            _project.panOffsetY != 0.0 ||
+            _project.zoomScale != 1.0)) {
+      _zoomScale = _project.zoomScale;
+      _zoomController.value = Matrix4.identity()
+        ..translate(_project.panOffsetX, _project.panOffsetY)
+        ..scale(_project.zoomScale);
+    }
   }
 
   void _handleStrokeCompleted(Stroke stroke) {
@@ -107,10 +121,18 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
   }
 
   void _persistChanges() {
+    final matrix = _zoomController.value;
+    final scale = matrix.getMaxScaleOnAxis();
+    final tx = matrix.storage[12];
+    final ty = matrix.storage[13];
+
     _project = _project.copyWith(
       strokes: List.from(_strokes),
       gridType: widget.gridType,
       gridStyle: widget.gridStyle,
+      zoomScale: scale,
+      panOffsetX: tx,
+      panOffsetY: ty,
       updatedAt: DateTime.now(),
     );
     ProjectService.instance.saveProject(_project);
@@ -229,6 +251,95 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
     });
   }
 
+  void _animateToBookmark(SpatialBookmark bookmark) {
+    _flyThroughController?.stop();
+    _flyThroughController?.dispose();
+
+    final startMatrix = _zoomController.value.clone();
+    final startScale = startMatrix.getMaxScaleOnAxis().clamp(0.001, 25000.0);
+    final startTx = startMatrix.storage[12];
+    final startTy = startMatrix.storage[13];
+
+    final targetScale = bookmark.zoomScale.clamp(0.001, 25000.0);
+    final targetTx = bookmark.panOffsetX;
+    final targetTy = bookmark.panOffsetY;
+
+    final controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _flyThroughController = controller;
+
+    final curved = CurvedAnimation(
+      parent: controller,
+      curve: Curves.easeInOutCubic,
+    );
+
+    curved.addListener(() {
+      final t = curved.value;
+      final logStart = math.log(startScale);
+      final logTarget = math.log(targetScale);
+      final currentScale = math.exp(
+        logStart + t * (logTarget - logStart),
+      );
+      final currentTx = startTx + (targetTx - startTx) * t;
+      final currentTy = startTy + (targetTy - startTy) * t;
+
+      _zoomController.value = Matrix4.identity()
+        ..translate(currentTx, currentTy)
+        ..scale(currentScale);
+
+      setState(() {
+        _zoomScale = currentScale;
+      });
+    });
+
+    controller.forward();
+  }
+
+  Future<void> _createBookmark() async {
+    final nextNum = _project.bookmarks.length + 1;
+    final name = await RenameProjectDialog.show(
+      context: context,
+      currentTitle: 'Scale Waypoint #$nextNum',
+      theme: widget.theme,
+      dialogTitle: 'Save Scale Bookmark',
+    );
+    if (name != null && name.trim().isNotEmpty) {
+      final matrix = _zoomController.value;
+      final scale = matrix.getMaxScaleOnAxis();
+      final tx = matrix.storage[12];
+      final ty = matrix.storage[13];
+
+      final bookmark = SpatialBookmark(
+        id: 'bm_${DateTime.now().microsecondsSinceEpoch}',
+        name: name.trim(),
+        zoomScale: scale,
+        panOffsetX: tx,
+        panOffsetY: ty,
+        createdAt: DateTime.now(),
+      );
+
+      setState(() {
+        final updated = List<SpatialBookmark>.from(_project.bookmarks)
+          ..add(bookmark);
+        _project = _project.copyWith(bookmarks: updated);
+      });
+      _persistChanges();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Saved bookmark "${bookmark.name}"'),
+            backgroundColor: widget.theme.borderHighlight,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   void _faceActivePlane() {
     final plane = _project.activePlane;
     setState(() {
@@ -241,6 +352,65 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
       );
     });
     _persistChanges();
+  }
+
+  void _openPlaneTransformSheet() {
+    final active = _project.activePlane;
+    PlaneTransformSheet.show(
+      context: context,
+      theme: widget.theme,
+      plane: active,
+      onPlaneUpdated: (updatedPlane) {
+        setState(() {
+          final updatedPlanes = _project.planes.map((p) {
+            return p.id == updatedPlane.id ? updatedPlane : p;
+          }).toList();
+          _project = _project.copyWith(planes: updatedPlanes);
+        });
+        _persistChanges();
+      },
+      onDuplicatePlane: () {
+        final duplicated = active.copyWith(
+          id: 'plane_${DateTime.now().microsecondsSinceEpoch}',
+          name: '${active.name} (Copy)',
+          originZ: active.originZ + 40.0,
+        );
+        setState(() {
+          final updatedPlanes = List<CanvasPlane3D>.from(_project.planes)
+            ..add(duplicated);
+          _project = _project.copyWith(
+            planes: updatedPlanes,
+            activePlaneId: duplicated.id,
+          );
+        });
+        _persistChanges();
+      },
+      onDeletePlane: () {
+        if (_project.planes.length <= 1) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Cannot delete the last remaining plane',
+              ),
+              backgroundColor: widget.theme.accentAmber,
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+        setState(() {
+          final updatedPlanes = _project.planes
+              .where((p) => p.id != active.id)
+              .toList();
+          _project = _project.copyWith(
+            planes: updatedPlanes,
+            activePlaneId: updatedPlanes.first.id,
+          );
+        });
+        _persistChanges();
+      },
+    );
   }
 
   void _openGuide() {
@@ -375,9 +545,12 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
               child: InfiniteZoomHud(
                 theme: theme,
                 zoomScale: _zoomScale,
+                bookmarks: _project.bookmarks,
                 onZoomPresetSelected: _setZoomScale,
                 onZoomStep: _zoomByFactor,
                 onResetZoom: _resetZoom,
+                onSelectBookmark: _animateToBookmark,
+                onAddBookmark: _createBookmark,
               ),
             ),
           ),
@@ -432,6 +605,7 @@ class _FreeformSandboxState extends State<FreeformSandbox> {
                   });
                   _persistChanges();
                 },
+                onEditPlane: _openPlaneTransformSheet,
               ),
             ),
           ),

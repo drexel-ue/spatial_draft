@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:spatial_draft/core/models/canvas_plane_3d.dart';
+import 'package:spatial_draft/core/models/spatial_bookmark.dart';
 import 'package:spatial_draft/core/models/stroke.dart';
 import 'package:spatial_draft/core/theme/app_theme.dart';
 
@@ -80,6 +81,7 @@ class SpatialProject {
     this.zoomScale = 1.0,
     this.panOffsetX = 0.0,
     this.panOffsetY = 0.0,
+    this.bookmarks = const <SpatialBookmark>[],
   });
 
   /// Deserializes a [SpatialProject] from a JSON map.
@@ -122,6 +124,12 @@ class SpatialProject {
     final camPitch = (json['cameraPitch'] as num?)?.toDouble() ?? 0.0;
     final camDist = (json['cameraDistance'] as num?)?.toDouble() ?? 800.0;
 
+    final rawBookmarks = json['bookmarks'] as List<dynamic>? ?? <dynamic>[];
+    final parsedBookmarks = rawBookmarks
+        .whereType<Map<String, dynamic>>()
+        .map(SpatialBookmark.fromJson)
+        .toList();
+
     return SpatialProject(
       id: json['id'] as String? ?? UniqueKey().toString(),
       title: json['title'] as String? ?? 'Untitled Draft',
@@ -144,6 +152,7 @@ class SpatialProject {
       zoomScale: (json['zoomScale'] as num?)?.toDouble() ?? 1.0,
       panOffsetX: (json['panOffsetX'] as num?)?.toDouble() ?? 0.0,
       panOffsetY: (json['panOffsetY'] as num?)?.toDouble() ?? 0.0,
+      bookmarks: parsedBookmarks,
     );
   }
 
@@ -155,6 +164,9 @@ class SpatialProject {
 
   /// Creative mode.
   final SandboxMode mode;
+
+  /// Saved multi-scale waypoints for cinematic fly-through.
+  final List<SpatialBookmark> bookmarks;
 
   /// Timestamp when created.
   final DateTime createdAt;
@@ -228,6 +240,7 @@ class SpatialProject {
       'zoomScale': zoomScale,
       'panOffsetX': panOffsetX,
       'panOffsetY': panOffsetY,
+      'bookmarks': bookmarks.map((b) => b.toJson()).toList(),
     };
   }
 
@@ -280,6 +293,7 @@ class SpatialProject {
     double? zoomScale,
     double? panOffsetX,
     double? panOffsetY,
+    List<SpatialBookmark>? bookmarks,
   }) {
     return SpatialProject(
       id: id ?? this.id,
@@ -299,6 +313,7 @@ class SpatialProject {
       zoomScale: zoomScale ?? this.zoomScale,
       panOffsetX: panOffsetX ?? this.panOffsetX,
       panOffsetY: panOffsetY ?? this.panOffsetY,
+      bookmarks: bookmarks ?? this.bookmarks,
     );
   }
 

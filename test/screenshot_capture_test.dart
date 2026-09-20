@@ -7,11 +7,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:spatial_draft/canvas/mental_canvas/plane_transform_sheet.dart';
 import 'package:spatial_draft/core/models/app_drill_mode.dart';
 import 'package:spatial_draft/core/models/canvas_plane_3d.dart';
 import 'package:spatial_draft/core/models/draft_capture.dart';
 import 'package:spatial_draft/core/models/procedural_form.dart';
 import 'package:spatial_draft/core/models/skill_profile.dart';
+import 'package:spatial_draft/core/models/spatial_bookmark.dart';
 import 'package:spatial_draft/core/models/spatial_project.dart';
 import 'package:spatial_draft/core/models/stroke.dart';
 import 'package:spatial_draft/core/models/stroke_point.dart';
@@ -663,6 +665,98 @@ void main() {
       );
       await tester.pumpAndSettle();
       await captureScreen(tester, '17_mental_canvas_3d_stage');
+    });
+
+    testWidgets('18 3D Plane Transform Gizmo & Sheet', (tester) async {
+      final ground = CanvasPlane3D.groundFloor();
+      final leftWall = CanvasPlane3D.leftWall();
+      final mentalProject = SpatialProject(
+        id: 'proj_mental_gizmo',
+        title: 'Architectural Isometric Stage',
+        mode: SandboxMode.mentalCanvas3D,
+        planes: [CanvasPlane3D.primaryFront(), ground, leftWall],
+        activePlaneId: ground.id,
+        cameraYaw: 0.52,
+        cameraPitch: 0.28,
+        cameraDistance: 950.0,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        buildTestScreen(
+          Stack(
+            children: [
+              FreeformSandbox(
+                theme: AppThemeTokens.dark(),
+                gridStyle: GridStyle.solid,
+                gridType: GridType.squareMetric,
+                initialProject: mentalProject,
+              ),
+              Positioned(
+                bottom: 0,
+                left: 160,
+                right: 160,
+                child: PlaneTransformSheet(
+                  theme: AppThemeTokens.dark(),
+                  plane: ground,
+                  onPlaneUpdated: (_) {},
+                  onDuplicatePlane: () {},
+                  onDeletePlane: () {},
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await captureScreen(tester, '18_plane_transform_gizmo');
+    });
+
+    testWidgets('19 Infinite Zoom Bookmarks & Scale Dock', (tester) async {
+      final bookmarks = [
+        SpatialBookmark(
+          id: 'bm_1',
+          name: '1:1 Blueprint Overview',
+          zoomScale: 1.0,
+          createdAt: DateTime.now(),
+        ),
+        SpatialBookmark(
+          id: 'bm_2',
+          name: 'Micro-Piston Assembly (150×)',
+          zoomScale: 150.0,
+          createdAt: DateTime.now(),
+        ),
+        SpatialBookmark(
+          id: 'bm_3',
+          name: 'Nanotube Sub-Grid (2500×)',
+          zoomScale: 2500.0,
+          createdAt: DateTime.now(),
+        ),
+      ];
+
+      final zoomProject = SpatialProject(
+        id: 'proj_zoom_bm',
+        title: 'Deep Multiscale Avionics',
+        mode: SandboxMode.infiniteZoom,
+        zoomScale: 150.0,
+        bookmarks: bookmarks,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        buildTestScreen(
+          FreeformSandbox(
+            theme: AppThemeTokens.blueprint(),
+            gridStyle: GridStyle.solid,
+            gridType: GridType.squareMetric,
+            initialProject: zoomProject,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await captureScreen(tester, '19_infinite_zoom_bookmarks');
     });
   });
 }

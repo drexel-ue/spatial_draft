@@ -18,6 +18,7 @@ class MentalCanvasTurntableDock extends StatelessWidget {
     required this.onAddPlane,
     required this.onSnapToPlane,
     required this.onResetOrbit,
+    this.onEditPlane,
   });
 
   /// Design tokens.
@@ -49,6 +50,9 @@ class MentalCanvasTurntableDock extends StatelessWidget {
 
   /// Callback to reset orbital rotation to 0,0.
   final VoidCallback onResetOrbit;
+
+  /// Optional callback to open plane transformation editor.
+  final VoidCallback? onEditPlane;
 
   CanvasPlane3D get _activePlane {
     return planes.firstWhere(
@@ -221,7 +225,23 @@ class MentalCanvasTurntableDock extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(width: 8),
+          if (onEditPlane != null) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              tooltip: 'Edit 3D Plane (Transforms & Angles)',
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.all(4),
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              icon: Icon(
+                Icons.tune_rounded,
+                size: 16,
+                color: theme.borderHighlight,
+              ),
+              onPressed: onEditPlane,
+            ),
+          ],
+
+          const SizedBox(width: 6),
 
           // Face Plane Button (Snap Camera Normal)
           IconButton(

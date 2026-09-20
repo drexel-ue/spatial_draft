@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:spatial_draft/core/models/spatial_project.dart';
 import 'package:spatial_draft/core/theme/app_theme.dart';
 import 'package:spatial_draft/services/svg_export_service.dart';
+import 'package:spatial_draft/views/gallery/interactive_3d_html_exporter.dart';
 
 /// Modal dialog allowing users to export a project as SVG or Native JSON.
 class ProjectExportDialog extends StatefulWidget {
@@ -48,6 +49,11 @@ enum _ExportFormat {
     'Native Project (.spatial)',
     'Full vector scene graph with layers & camera',
     Icons.data_object_rounded,
+  ),
+  interactiveHtml(
+    'Interactive 3D Web (.html)',
+    'Standalone browser turntable viewer with zero install',
+    Icons.view_in_ar_rounded,
   );
 
   _ExportFormat(this.label, this.subtitle, this.icon);
@@ -79,22 +85,36 @@ class _ProjectExportDialogState extends State<ProjectExportDialog> {
     super.dispose();
   }
 
-  String get _currentExtension =>
-      _format == _ExportFormat.svg ? '.svg' : '.spatial';
+  String get _currentExtension {
+    switch (_format) {
+      case _ExportFormat.svg:
+        return '.svg';
+      case _ExportFormat.spatialJson:
+        return '.spatial';
+      case _ExportFormat.interactiveHtml:
+        return '.html';
+    }
+  }
 
   Future<void> _handleExport() async {
     final filename = '${_nameController.text.trim()}$_currentExtension';
     final theme = widget.theme;
 
     String exportPayload;
-    if (_format == _ExportFormat.svg) {
-      exportPayload = SvgExportService.exportToSvg(
-        strokes: widget.project.strokes,
-        title: widget.project.title,
-        backgroundColor: _includeBackground ? theme.canvasBackground : null,
-      );
-    } else {
-      exportPayload = widget.project.toExportJson();
+    switch (_format) {
+      case _ExportFormat.svg:
+        exportPayload = SvgExportService.exportToSvg(
+          strokes: widget.project.strokes,
+          title: widget.project.title,
+          backgroundColor: _includeBackground ? theme.canvasBackground : null,
+        );
+        break;
+      case _ExportFormat.spatialJson:
+        exportPayload = widget.project.toExportJson();
+        break;
+      case _ExportFormat.interactiveHtml:
+        exportPayload = Interactive3dHtmlExporter.generateHtml(widget.project);
+        break;
     }
 
     await Clipboard.setData(ClipboardData(text: exportPayload));
@@ -157,7 +177,8 @@ class _ProjectExportDialogState extends State<ProjectExportDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Export "${widget.project.title}" (${widget.project.strokeCountLabel}) '
+              'Export "${widget.project.title}" '
+              '(${widget.project.strokeCountLabel}) '
               'into vector or native drafting formats.',
               style: theme.bodyStyle.copyWith(
                 fontSize: 13,

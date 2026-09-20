@@ -18,6 +18,7 @@ class CanvasPlane3D {
     this.colorValue = 0xFF00FFCC,
     this.opacity = 0.85,
     this.isLocked = false,
+    this.isVisible = true,
   });
 
   /// Factory template: primary front-facing elevation plane.
@@ -100,6 +101,7 @@ class CanvasPlane3D {
       colorValue: (json['colorValue'] as num?)?.toInt() ?? 0xFF00FFCC,
       opacity: (json['opacity'] as num?)?.toDouble() ?? 0.85,
       isLocked: json['isLocked'] as bool? ?? false,
+      isVisible: json['isVisible'] as bool? ?? true,
     );
   }
 
@@ -142,10 +144,13 @@ class CanvasPlane3D {
   /// Whether drawing on this plane is currently locked.
   final bool isLocked;
 
+  /// Whether this plane is currently visible.
+  final bool isVisible;
+
   /// Color representation of [colorValue].
   Color get color => Color(colorValue);
 
-  /// Transforms a 2D local plane coordinate (u, v) into 3D world space (x, y, z).
+  /// Transforms a 2D local coordinate (u, v) into 3D world space (x, y, z).
   List<double> project2Dto3D(Offset uv) {
     final u = uv.dx;
     final v = uv.dy;
@@ -174,7 +179,7 @@ class CanvasPlane3D {
     return [originX + x3, originY + y3, originZ + z3];
   }
 
-  /// Transforms a 3D world coordinate (x, y, z) into a 2D local plane coordinate.
+  /// Transforms a 3D world coordinate (x, y, z) into 2D plane coordinates.
   Offset project3Dto2D(double wx, double wy, double wz) {
     // Relative to origin
     final rx = wx - originX;
@@ -297,6 +302,7 @@ class CanvasPlane3D {
       'colorValue': colorValue,
       'opacity': opacity,
       'isLocked': isLocked,
+      'isVisible': isVisible,
     };
   }
 
@@ -315,6 +321,7 @@ class CanvasPlane3D {
     int? colorValue,
     double? opacity,
     bool? isLocked,
+    bool? isVisible,
   }) {
     return CanvasPlane3D(
       id: id ?? this.id,
@@ -330,6 +337,7 @@ class CanvasPlane3D {
       colorValue: colorValue ?? this.colorValue,
       opacity: opacity ?? this.opacity,
       isLocked: isLocked ?? this.isLocked,
+      isVisible: isVisible ?? this.isVisible,
     );
   }
 }

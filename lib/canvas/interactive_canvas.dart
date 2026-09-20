@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:spatial_draft/canvas/canvas_grid_painter.dart';
+import 'package:spatial_draft/canvas/hardware/stylus_hover_reticle.dart';
 import 'package:spatial_draft/canvas/ink_layer_painter.dart';
 import 'package:spatial_draft/core/models/stroke.dart';
 import 'package:spatial_draft/core/models/stroke_point.dart';
@@ -58,6 +59,8 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
   final List<StrokePoint> _activePoints = [];
   bool _isDrawing = false;
   int _activePointerId = -1;
+  Offset? _hoverPosition;
+  bool _isHovering = false;
 
   @override
   void initState() {
@@ -104,11 +107,23 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
 
   Color get _currentInkColor => widget.overrideInkColor ?? widget.theme.defaultInk;
 
+  void _handlePointerHover(PointerHoverEvent event) {
+    if (event.kind == PointerDeviceKind.stylus ||
+        event.kind == PointerDeviceKind.mouse) {
+      setState(() {
+        _hoverPosition = event.localPosition;
+        _isHovering = true;
+      });
+    }
+  }
+
   void _handlePointerDown(PointerDownEvent event) {
     // Stylus or Mouse primary click or touch if allowed
     final isStylus = event.kind == PointerDeviceKind.stylus;
-    final isMouse = event.kind == PointerDeviceKind.mouse && event.buttons == kPrimaryMouseButton;
-    final isAllowedTouch = event.kind == PointerDeviceKind.touch && widget.allowFingerDrawing;
+    final isMouse = event.kind == PointerDeviceKind.mouse &&
+        event.buttons == kPrimaryMouseButton;
+    final isAllowedTouch =
+        event.kind == PointerDeviceKind.touch && widget.allowFingerDrawing;
 
     if (isStylus || isMouse || isAllowedTouch) {
       if (_isDrawing) return;
@@ -116,6 +131,7 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
       final canvasPos = _screenToCanvas(event.localPosition);
       _activePointerId = event.pointer;
       _isDrawing = true;
+      _isHovering = false;
       _activePoints.clear();
       _activePoints.add(
         StrokePoint(
@@ -146,23 +162,25 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
 
   void _handlePointerUp(PointerUpEvent event) {
     if (!_isDrawing || event.pointer != _activePointerId) return;
-
+    _isHovering = false;
     _finalizeStroke();
   }
 
   void _handlePointerCancel(PointerCancelEvent event) {
     if (!_isDrawing || event.pointer != _activePointerId) return;
-
+    _isHovering = false;
     _finalizeStroke();
   }
 
   void _finalizeStroke() {
     if (_activePoints.isNotEmpty) {
+      final currentScale = _transformController.value.getMaxScaleOnAxis();
       final newStroke = Stroke(
         points: List.from(_activePoints),
         color: _currentInkColor,
         lineWeight: widget.currentLineWeight,
         planeId: widget.activePlaneId,
+        authoringScale: currentScale,
       );
       widget.onStrokeCompleted?.call(newStroke);
     }
@@ -181,12 +199,14 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
 
   @override
   Widget build(BuildContext context) {
+    final currentScale = _transformController.value.getMaxScaleOnAxis();
     final liveStroke = _isDrawing && _activePoints.isNotEmpty
         ? Stroke(
             points: _activePoints,
             color: _currentInkColor,
             lineWeight: widget.currentLineWeight,
             planeId: widget.activePlaneId,
+            authoringScale: currentScale,
           )
         : null;
 
@@ -246,12 +266,21 @@ class _InteractiveCanvasState extends State<InteractiveCanvas> {
           Positioned.fill(
             child: Listener(
               behavior: HitTestBehavior.translucent,
+              onPointerHover: _handlePointerHover,
               onPointerDown: _handlePointerDown,
               onPointerMove: _handlePointerMove,
               onPointerUp: _handlePointerUp,
               onPointerCancel: _handlePointerCancel,
             ),
           ),
+
+          // Stylus Precision Hover Reticle
+          if (_isHovering && _hoverPosition != null && !_isDrawing)
+            StylusHoverReticle(
+              theme: widget.theme,
+              position: _hoverPosition!,
+              currentLineWeight: widget.currentLineWeight,
+            ),
 
           // Floating Recenter & Zoom HUD dock
           if (widget.showRecenterHud)

@@ -46,6 +46,7 @@ class Stroke {
     this.lineWeight = LineWeightType.crease,
     this.segmentColors,
     this.planeId = 'plane_primary',
+    this.authoringScale = 1.0,
   }) : points = List.unmodifiable(points);
 
   /// Deserializes a [Stroke] from a JSON map.
@@ -63,12 +64,14 @@ class Stroke {
       orElse: () => LineWeightType.crease,
     );
     final plane = json['planeId'] as String? ?? 'plane_primary';
+    final scale = (json['authoringScale'] as num?)?.toDouble() ?? 1.0;
 
     return Stroke(
       points: pts,
       color: Color(colorVal),
       lineWeight: weight,
       planeId: plane,
+      authoringScale: scale,
     );
   }
 
@@ -80,12 +83,35 @@ class Stroke {
   /// The 3D spatial canvas plane this stroke resides on.
   final String planeId;
 
+  /// Viewport magnification scale at authoring time (used for LOD rendering).
+  final double authoringScale;
+
+  /// Creates a copy with modified fields.
+  Stroke copyWith({
+    List<StrokePoint>? points,
+    Color? color,
+    LineWeightType? lineWeight,
+    List<Color>? segmentColors,
+    String? planeId,
+    double? authoringScale,
+  }) {
+    return Stroke(
+      points: points ?? this.points,
+      color: color ?? this.color,
+      lineWeight: lineWeight ?? this.lineWeight,
+      segmentColors: segmentColors ?? this.segmentColors,
+      planeId: planeId ?? this.planeId,
+      authoringScale: authoringScale ?? this.authoringScale,
+    );
+  }
+
   /// Serializes to a JSON map.
   Map<String, dynamic> toJson() => <String, dynamic>{
         'points': points.map((p) => p.toJson()).toList(),
         'color': color.value,
         'weight': lineWeight.name,
         'planeId': planeId,
+        'authoringScale': authoringScale,
       };
 
   bool get isEmpty => points.isEmpty;
@@ -97,7 +123,8 @@ class Stroke {
   /// Total duration of the stroke in milliseconds
   double get durationMs {
     if (points.length < 2) return 0.0;
-    return (points.last.timestampMicros - points.first.timestampMicros) / 1000.0;
+    final micros = points.last.timestampMicros - points.first.timestampMicros;
+    return micros / 1000.0;
   }
 
   /// Total physical path length in canvas pixels
@@ -122,7 +149,12 @@ class Stroke {
     final path = Path();
     if (points.isEmpty) return path;
     if (points.length == 1) {
-      path.addOval(Rect.fromCircle(center: points.first.position, radius: lineWeight.baseWidth / 2));
+      path.addOval(
+        Rect.fromCircle(
+          center: points.first.position,
+          radius: lineWeight.baseWidth / 2,
+        ),
+      );
       return path;
     }
 
@@ -161,7 +193,10 @@ class Stroke {
         final length = draw ? dashLength : dashSpace;
         if (draw) {
           dashed.addPath(
-            metric.extractPath(distance, (distance + length).clamp(0.0, metric.length)),
+            metric.extractPath(
+              distance,
+              (distance + length).clamp(0.0, metric.length),
+            ),
             Offset.zero,
           );
         }
